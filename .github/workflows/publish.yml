@@ -1,0 +1,72 @@
+name: Publish to CurseForge
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_curseforge:
+        description: 'Publish to CurseForge'
+        type: boolean
+        default: true
+      publish_github_release:
+        description: 'Create GitHub release'
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Get version
+        id: version
+        run: echo "value=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Build with Gradle
+        run: ./gradlew build
+
+      - name: Publish to CurseForge
+        if: ${{ inputs.publish_curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          version: ${{ steps.version.outputs.value }}
+          version-type: release
+          name: "[${{ steps.version.outputs.value }}] Climbable Ropes"
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          files: build/libs/!(*-@(dev|sources|javadoc)).jar
+          java: 21
+
+          curseforge-id: 1528764
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ inputs.publish_github_release }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          version: ${{ steps.version.outputs.value }}
+          version-type: release
+          name: "[${{ steps.version.outputs.value }}] Climbable Ropes"
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          files: build/libs/!(*-@(dev|sources|javadoc)).jar
+          java: 21
+
+          github-token: ${{ secrets.GITHUB_TOKEN }}
