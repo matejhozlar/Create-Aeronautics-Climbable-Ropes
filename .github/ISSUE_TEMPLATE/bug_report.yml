@@ -1,0 +1,70 @@
+name: 🐛 Bug Report
+description: File a bug report to help us fix issues.
+title: "[BUG] "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: textarea
+    id: problem_description
+    attributes:
+      label: Problem description
+      description: A clear description of what the bug is
+      placeholder: Describe what happened...
+    validations:
+      required: true
+
+  - type: input
+    id: minecraft_version
+    attributes:
+      label: Minecraft Version
+      placeholder: "e.g. 1.21.1"
+      value: "1.21.1"
+    validations:
+      required: true
+
+  - type: input
+    id: modloader_version
+    attributes:
+      label: Modloader Version
+      placeholder: "e.g. NeoForge 21.1.197"
+    validations:
+      required: true
+
+  - type: input
+    id: mod_version
+    attributes:
+      label: Mod Version
+      placeholder: "e.g. 1.0.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: other_mods
+    attributes:
+      label: Other Installed Mods
+      description: List any other mods you have installed.
+      placeholder: |
+        - jei 16.0.0
+        - optifine HD_U_G9
+      value: "- "
+    validations:
+      required: false
+
+  - type: textarea
+    id: latest_log
+    attributes:
+      label: latest.log file
+      description: Paste your latest.log file here or drag-and-drop the file.
+      placeholder: Paste or upload your latest.log file...
+    validations:
+      required: false
+
+  - type: textarea
+    id: crash_report
+    attributes:
+      label: crash-report file
+      description: Paste your crash report here or drag-and-drop the file.
+      placeholder: Paste or upload crash report...
+    validations:
+      required: false
