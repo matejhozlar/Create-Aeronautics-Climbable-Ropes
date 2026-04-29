@@ -1,0 +1,53 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="saunhardy"
+displayURL="https://gitea.matejhoz.com/matejhozlar/create-aeronautics-climbable-ropes"
+issueTrackerURL="https://gitea.matejhoz.com/matejhozlar/create-aeronautics-climbable-ropes/issues"
+side="CLIENT"
+description='''
+Addon for Create: Aeronautics (Simulated module). Adds an empty-hand climb mode for vertical rope strands: right-click a vertical rope with bare hands to grab on, then W/S to climb up and down, Shift to let go, Space to jump off. Ziplines are unaffected — the wrench-driven ride system still works exactly as in vanilla Simulated.
+'''
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="simulated"
+    type="required"
+    versionRange="[${simulated_mod_version},)"
+    ordering="AFTER"
+    side="BOTH"
+    reason="Uses Simulated's ZiplineClientManager and RopeRidingPacket to drive the climb mode."
+
+[[dependencies.${mod_id}]]
+    modId="sable"
+    type="required"
+    versionRange="[${sable_mod_version},)"
+    ordering="AFTER"
+    side="BOTH"
+    reason="Transitive dependency of Simulated's rope strand system."
+
+[[dependencies.${mod_id}]]
+    modId="create"
+    type="required"
+    versionRange="[${create_mod_version},)"
+    ordering="AFTER"
+    side="BOTH"
+    reason="CHAIN_RIDEABLE tag and rope holder behaviour come from Create."

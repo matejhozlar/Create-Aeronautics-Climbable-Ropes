@@ -1,0 +1,171 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'idea'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = mod_version
+group = mod_group_id
+
+sourceSets.main.resources {
+    srcDir('src/generated/resources')
+    exclude("**/*.bbmodel")
+    exclude("src/generated/**/.cache")
+}
+
+repositories {
+    maven {
+        name = "RyanHCode"
+        url = "https://maven.ryanhcode.dev/releases"
+    }
+    maven {
+        name = "CreateMod"
+        url = "https://maven.createmod.net"
+    }
+    maven {
+        name = "DevOS"
+        url = "https://mvn.devos.one/snapshots"
+    }
+    maven {
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+    flatDir {
+        name = "SimulatedLocal"
+        dirs "../Simulated-Project/simulated/neoforge/build/libs",
+             "../Simulated-Project/all-neoforge/build/libs",
+             "libs"
+    }
+}
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // === Compile-time API surfaces we mixin into / reference ===
+    compileOnly("dev.ryanhcode.sable:sable-neoforge-${minecraft_version}:${sable_version}") {
+        exclude group: "foundry.veil"
+    }
+    compileOnly("dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_companion_version}")
+    compileOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
+    compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
+    compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
+
+    // Simulated jar — drop the built jar into ./libs/ or build Simulated-Project first
+    // (flatDir picks up ../Simulated-Project/simulated/neoforge/build/libs/ automatically)
+    compileOnly fileTree(dir: 'libs', include: ['simulated-*.jar'])
+    compileOnly fileTree(dir: '../Simulated-Project/simulated/neoforge/build/libs', include: ['*.jar'])
+    compileOnly fileTree(dir: '../Simulated-Project/all-neoforge/build/libs', include: ['*.jar'])
+
+    // Veil is a transitive Sable runtime dep we reference for VeilPacketManager
+    compileOnly("foundry.veil:veil-neoforge-${minecraft_version}:${veil_version}") { transitive = false }
+
+    // === Dev runtime: full mod jars so runClient boots a world with the whole stack ===
+    // create-aeronautics is the BUNDLED jar (jar-in-jar): NeoForge's loader unpacks Simulated,
+    // Aeronautics, and Offroad from inside it at runtime, so we don't need to ship Simulated
+    // separately for runClient.
+    localRuntime("maven.modrinth:sable:${sable_mod_version}+mc${minecraft_version}")
+    localRuntime("maven.modrinth:create:${create_mod_version}+mc${minecraft_version}")
+    localRuntime("maven.modrinth:create-aeronautics:1.2.1+mc${minecraft_version}")
+    localRuntime("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            sable_mod_version      : sable_mod_version,
+            create_mod_version     : create_mod_version,
+            simulated_mod_version  : simulated_mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
