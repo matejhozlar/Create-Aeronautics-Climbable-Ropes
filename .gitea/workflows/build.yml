@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - neoforge-1.21.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Build Simulated jar
+        run: |
+          git clone --depth 1 https://github.com/Creators-of-Aeronautics/Simulated-Project.git ../Simulated-Project
+          chmod +x ../Simulated-Project/gradlew
+          (cd ../Simulated-Project && ./gradlew :simulated:neoforge:jar --no-daemon)
+
+      - name: Build with Gradle
+        run: ./gradlew build
