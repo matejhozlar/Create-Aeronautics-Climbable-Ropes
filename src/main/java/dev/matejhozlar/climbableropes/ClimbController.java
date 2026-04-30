@@ -32,6 +32,9 @@ public final class ClimbController {
 
     private static final double CLIMB_SPEED = 0.18;
     private static final double DESCEND_SPEED = 0.22;
+    private static final double SLIDE_SPEED = 1.2;
+    private static final double SLIDE_ACCEL = 0.05;
+    private static final double SLIDE_DECEL = 0.04;
     private static final double SNAP_PULL = 0.55;
     private static final double SNAP_HORIZ_CAP = 0.35;
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
@@ -45,6 +48,7 @@ public final class ClimbController {
     private static UUID climbingRope = null;
     private static int bottomGroundedTimer = 0;
     private static boolean prevUseDown = false;
+    private static double slideVelocity = 0.0;
 
     private ClimbController() {}
 
@@ -57,6 +61,8 @@ public final class ClimbController {
             climbingRope = null;
             bottomGroundedTimer = 0;
             prevUseDown = false;
+            slideVelocity = 0.0;
+            PlungerClimbController.reset();
             return;
         }
         if (mc.isPaused()) return;
@@ -70,18 +76,23 @@ public final class ClimbController {
             return;
         }
 
+        if (PlungerClimbController.isClimbing()) {
+            PlungerClimbController.tickClimb(mc, player);
+            return;
+        }
+
         if (!player.getMainHandItem().isEmpty()) return;
         if (player.isShiftKeyDown()) return;
         if (ZiplineClientManager.ridingRope != null) return;
 
         UUID hovered = findVerticalHover(mc, player);
-        if (hovered == null) return;
-
-        ZiplineClientManager.hoveringRope = hovered;
-
-        if (justPressed) {
-            embark(hovered, mc, player);
+        if (hovered != null) {
+            ZiplineClientManager.hoveringRope = hovered;
+            if (justPressed) embark(hovered, mc, player);
+            return;
         }
+
+        PlungerClimbController.tryHoverEmbark(mc, player, justPressed);
     }
 
     private static UUID findVerticalHover(Minecraft mc, LocalPlayer player) {
@@ -129,6 +140,7 @@ public final class ClimbController {
         }
         climbingRope = null;
         bottomGroundedTimer = 0;
+        slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
@@ -152,6 +164,7 @@ public final class ClimbController {
 
         boolean climbUp = mc.options.keyUp.isDown();
         boolean climbDown = mc.options.keyDown.isDown();
+        boolean sprint = mc.options.keySprint.isDown();
         boolean dismount = mc.options.keyShift.isDown();
         boolean jumpOff = mc.options.keyJump.isDown();
 
@@ -182,7 +195,22 @@ public final class ClimbController {
             bottomGroundedTimer = 0;
         }
 
-        double yVel = climbUp ? CLIMB_SPEED : climbDown ? -DESCEND_SPEED : 0.0;
+        boolean sliding = climbDown && sprint;
+        if (climbUp) {
+            slideVelocity = 0.0;
+        } else if (sliding) {
+            if (slideVelocity < DESCEND_SPEED) slideVelocity = DESCEND_SPEED;
+            slideVelocity = Math.min(SLIDE_SPEED, slideVelocity + SLIDE_ACCEL);
+        } else if (slideVelocity > 0) {
+            slideVelocity = Math.max(0.0, slideVelocity - SLIDE_DECEL);
+        }
+
+        double yVel;
+        if (climbUp) yVel = CLIMB_SPEED;
+        else if (slideVelocity > DESCEND_SPEED) yVel = -slideVelocity;
+        else if (climbDown) yVel = -DESCEND_SPEED;
+        else if (slideVelocity > 0) yVel = -slideVelocity;
+        else yVel = 0.0;
 
         double yawRad = Math.toRadians(player.getYRot());
         double dx = ropeWorld.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET - anchor.x;
