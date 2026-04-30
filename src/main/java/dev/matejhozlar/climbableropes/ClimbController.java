@@ -32,6 +32,7 @@ public final class ClimbController {
 
     private static final double CLIMB_SPEED = 0.18;
     private static final double DESCEND_SPEED = 0.22;
+    private static final double SLIDE_SPEED = 0.55;
     private static final double SNAP_PULL = 0.55;
     private static final double SNAP_HORIZ_CAP = 0.35;
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
@@ -152,6 +153,7 @@ public final class ClimbController {
 
         boolean climbUp = mc.options.keyUp.isDown();
         boolean climbDown = mc.options.keyDown.isDown();
+        boolean sprint = mc.options.keySprint.isDown();
         boolean dismount = mc.options.keyShift.isDown();
         boolean jumpOff = mc.options.keyJump.isDown();
 
@@ -182,7 +184,7 @@ public final class ClimbController {
             bottomGroundedTimer = 0;
         }
 
-        double yVel = climbUp ? CLIMB_SPEED : climbDown ? -DESCEND_SPEED : 0.0;
+        double yVel = climbUp ? CLIMB_SPEED : climbDown ? (sprint ? -SLIDE_SPEED : -DESCEND_SPEED) : 0.0;
 
         double yawRad = Math.toRadians(player.getYRot());
         double dx = ropeWorld.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET - anchor.x;
