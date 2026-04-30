@@ -112,10 +112,10 @@ final class PlungerClimbController {
         }
 
         double sinAngle = Math.abs(dir.y);
-        boolean sliding = climbDown && sprint;
+        boolean slideEffective = climbDown && sprint && SLIDE_SPEED * sinAngle > DESCEND_SPEED;
         if (climbUp) {
             slideVelocity = 0.0;
-        } else if (sliding) {
+        } else if (slideEffective) {
             if (slideVelocity < DESCEND_SPEED) slideVelocity = DESCEND_SPEED;
             slideVelocity = Math.min(SLIDE_SPEED * sinAngle, slideVelocity + SLIDE_ACCEL * sinAngle);
         } else if (slideVelocity > 0) {
