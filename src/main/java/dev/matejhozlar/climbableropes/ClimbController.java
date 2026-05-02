@@ -185,6 +185,7 @@ public final class ClimbController {
         Vec3 firstPoint = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 lastPoint = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottomPoint = firstPoint.y < lastPoint.y ? firstPoint : lastPoint;
+        Vec3 topPoint = firstPoint.y < lastPoint.y ? lastPoint : firstPoint;
 
         if (player.onGround() && !climbUp && anchor.y < bottomPoint.y + BOTTOM_DISMOUNT_OFFSET) {
             if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
@@ -194,6 +195,8 @@ public final class ClimbController {
         } else {
             bottomGroundedTimer = 0;
         }
+
+        if (climbUp && anchor.y >= topPoint.y) climbUp = false;
 
         boolean sliding = climbDown && sprint;
         if (climbUp) {
