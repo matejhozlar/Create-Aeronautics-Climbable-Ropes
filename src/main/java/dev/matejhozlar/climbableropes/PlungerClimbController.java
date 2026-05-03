@@ -20,16 +20,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 final class PlungerClimbController {
-    private static final double CLIMB_SPEED = 0.18;
-    private static final double DESCEND_SPEED = 0.22;
-    private static final double SLIDE_SPEED = 1.2;
-    private static final double SLIDE_ACCEL = 0.05;
-    private static final double SLIDE_DECEL = 0.04;
     private static final double SNAP_PULL = 0.55;
     private static final double SNAP_HORIZ_CAP = 0.35;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    private static final double JUMP_OFF_VELOCITY = 0.42;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double VERTICAL_BIAS = 0.5;
     // Mirrors LaunchedPlungerEntityRenderer.scalingFactor; keep in sync.
@@ -79,7 +73,7 @@ final class PlungerClimbController {
 
         if (jumpOff) {
             Vec3 v = player.getDeltaMovement();
-            player.setDeltaMovement(v.x, Math.max(v.y, JUMP_OFF_VELOCITY), v.z);
+            player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
             disembark();
             return;
         }
@@ -111,21 +105,30 @@ final class PlungerClimbController {
             bottomGroundedTimer = 0;
         }
 
+        double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
+        double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
+        double slideSpeed = ClimbableRopesConfig.SLIDE_SPEED.get();
+        double slideAccel = ClimbableRopesConfig.SLIDE_ACCELERATION.get();
+        double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
+
+        double remainingUp = Math.max(0.0, abLen - t);
+        if (climbUp && remainingUp <= 0.0) climbUp = false;
+
         double sinAngle = Math.abs(dir.y);
-        boolean slideEffective = climbDown && sprint && SLIDE_SPEED * sinAngle > DESCEND_SPEED;
+        boolean slideEffective = climbDown && sprint && slideSpeed * sinAngle > descendSpeed;
         if (climbUp) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
-            if (slideVelocity < DESCEND_SPEED) slideVelocity = DESCEND_SPEED;
-            slideVelocity = Math.min(SLIDE_SPEED * sinAngle, slideVelocity + SLIDE_ACCEL * sinAngle);
+            if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
+            slideVelocity = Math.min(slideSpeed * sinAngle, slideVelocity + slideAccel * sinAngle);
         } else if (slideVelocity > 0) {
-            slideVelocity = Math.max(0.0, slideVelocity - SLIDE_DECEL);
+            slideVelocity = Math.max(0.0, slideVelocity - slideDecel);
         }
 
         double speedAlong;
-        if (climbUp) speedAlong = CLIMB_SPEED;
-        else if (slideVelocity > DESCEND_SPEED) speedAlong = -slideVelocity;
-        else if (climbDown) speedAlong = -DESCEND_SPEED;
+        if (climbUp) speedAlong = Math.min(climbSpeed, remainingUp);
+        else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
+        else if (climbDown) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
         Vec3 climbVel = dir.scale(speedAlong);
