@@ -30,18 +30,12 @@ import java.util.UUID;
 public final class ClimbController {
     public static final double VERTICAL_THRESHOLD = 0.85;
 
-    private static final double CLIMB_SPEED = 0.18;
-    private static final double DESCEND_SPEED = 0.22;
-    private static final double SLIDE_SPEED = 1.2;
-    private static final double SLIDE_ACCEL = 0.05;
-    private static final double SLIDE_DECEL = 0.04;
     private static final double SNAP_PULL = 0.55;
     private static final double SNAP_HORIZ_CAP = 0.35;
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
-    private static final double JUMP_OFF_VELOCITY = 0.42;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
@@ -85,14 +79,18 @@ public final class ClimbController {
         if (player.isShiftKeyDown()) return;
         if (ZiplineClientManager.ridingRope != null) return;
 
-        UUID hovered = findVerticalHover(mc, player);
-        if (hovered != null) {
-            ZiplineClientManager.hoveringRope = hovered;
-            if (justPressed) embark(hovered, mc, player);
-            return;
+        if (ClimbableRopesConfig.ALLOW_VERTICAL_ROPE_CLIMBING.get()) {
+            UUID hovered = findVerticalHover(mc, player);
+            if (hovered != null) {
+                ZiplineClientManager.hoveringRope = hovered;
+                if (justPressed) embark(hovered, mc, player);
+                return;
+            }
         }
 
-        PlungerClimbController.tryHoverEmbark(mc, player, justPressed);
+        if (ClimbableRopesConfig.ALLOW_PLUNGER_CLIMBING.get()) {
+            PlungerClimbController.tryHoverEmbark(mc, player, justPressed);
+        }
     }
 
     private static UUID findVerticalHover(Minecraft mc, LocalPlayer player) {
@@ -170,7 +168,7 @@ public final class ClimbController {
 
         if (jumpOff) {
             Vec3 v = player.getDeltaMovement();
-            player.setDeltaMovement(v.x, Math.max(v.y, JUMP_OFF_VELOCITY), v.z);
+            player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
             disembark();
             return;
         }
@@ -196,22 +194,29 @@ public final class ClimbController {
             bottomGroundedTimer = 0;
         }
 
-        if (climbUp && anchor.y >= topPoint.y) climbUp = false;
+        double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
+        if (climbUp && remainingUp <= 0.0) climbUp = false;
+
+        double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
+        double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
+        double slideSpeed = ClimbableRopesConfig.SLIDE_SPEED.get();
+        double slideAccel = ClimbableRopesConfig.SLIDE_ACCELERATION.get();
+        double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
         boolean sliding = climbDown && sprint;
         if (climbUp) {
             slideVelocity = 0.0;
         } else if (sliding) {
-            if (slideVelocity < DESCEND_SPEED) slideVelocity = DESCEND_SPEED;
-            slideVelocity = Math.min(SLIDE_SPEED, slideVelocity + SLIDE_ACCEL);
+            if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
+            slideVelocity = Math.min(slideSpeed, slideVelocity + slideAccel);
         } else if (slideVelocity > 0) {
-            slideVelocity = Math.max(0.0, slideVelocity - SLIDE_DECEL);
+            slideVelocity = Math.max(0.0, slideVelocity - slideDecel);
         }
 
         double yVel;
-        if (climbUp) yVel = CLIMB_SPEED;
-        else if (slideVelocity > DESCEND_SPEED) yVel = -slideVelocity;
-        else if (climbDown) yVel = -DESCEND_SPEED;
+        if (climbUp) yVel = Math.min(climbSpeed, remainingUp);
+        else if (slideVelocity > descendSpeed) yVel = -slideVelocity;
+        else if (climbDown) yVel = -descendSpeed;
         else if (slideVelocity > 0) yVel = -slideVelocity;
         else yVel = 0.0;
 
