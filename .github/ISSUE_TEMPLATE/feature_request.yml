@@ -41,14 +41,6 @@ body:
     validations:
       required: false
 
-  - type: input
-    id: mod_version
-    attributes:
-      label: Mod Version
-      placeholder: "e.g. 1.3.0"
-    validations:
-      required: false
-
   - type: textarea
     id: additional_context
     attributes:
