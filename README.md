@@ -53,3 +53,32 @@ While climbing:
 Sneak-to-dismount matches Simulated's existing on-embark hint ("Press [LEFT SHIFT] to dismount").
 
 Embarking the existing Simulated zipline mode still works the same — look at the rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) and right-click.
+
+## Configuration
+
+Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, generated on first world load. On a dedicated server the operator owns it; in singleplayer the player owns it (per world). Values auto-sync to connected clients on join, so the server is authoritative — clients can't tweak the file locally to climb faster.
+
+### `[climbing]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `climbSpeed` | `0.18` | Vertical speed when holding forward (blocks/tick). |
+| `descendSpeed` | `0.22` | Vertical speed when holding back (blocks/tick). |
+| `jumpOffVelocity` | `0.42` | Upward impulse applied when jumping off. |
+
+### `[sliding]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `slideSpeed` | `1.2` | Maximum sprint-descend slide speed. |
+| `slideAcceleration` | `0.05` | How quickly the slide ramps up. |
+| `slideDeceleration` | `0.04` | How quickly the slide eases out after releasing back. |
+
+### `[features]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `allowVerticalRopeClimbing` | `true` | Toggle vertical hanging-rope climb. |
+| `allowPlungerClimbing` | `true` | Toggle plunger-line climb. |
+
+Toggling a feature off only blocks new embarkations; in-progress climbs finish normally.
