@@ -1,0 +1,51 @@
+name: ✨ Feature Suggestion
+description: Suggest a new feature or improvement.
+title: "[FEATURE] "
+labels: ["enhancement"]
+assignees: []
+
+body:
+  - type: textarea
+    id: problem_description
+    attributes:
+      label: Problem description
+      description: What problem does this feature solve, or what would it improve?
+      placeholder: Describe the problem or limitation...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or behavior you'd like to see.
+      placeholder: Describe what you'd like to happen...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've considered.
+      placeholder: Describe alternatives...
+    validations:
+      required: false
+
+  - type: input
+    id: minecraft_version
+    attributes:
+      label: Minecraft Version
+      placeholder: "e.g. 1.21.1"
+      value: "1.21.1"
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Screenshots, references, or anything else that helps explain the suggestion.
+      placeholder: Add any other context here...
+    validations:
+      required: false
