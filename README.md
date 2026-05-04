@@ -1,17 +1,21 @@
 # Climbable Ropes for Create Aeronautics
 
-[![Modrinth Downloads](https://img.shields.io/modrinth/dt/jImqv1M5?logo=modrinth&label=Modrinth&color=00AF5C&style=for-the-badge)](https://modrinth.com/mod/create-aeronautics-climbable-rope)
-[![CurseForge Downloads](https://img.shields.io/curseforge/dt/1528764?logo=curseforge&label=CurseForge&color=F16436&style=for-the-badge)](https://www.curseforge.com/projects/1528764)
+<p align="center">
+  <a href="https://modrinth.com/mod/create-aeronautics-climbable-rope"><img src="https://img.shields.io/modrinth/dt/jImqv1M5?logo=modrinth&label=Modrinth&color=00AF5C&style=for-the-badge" alt="Modrinth Downloads"></a>
+  <a href="https://www.curseforge.com/projects/1528764"><img src="https://img.shields.io/curseforge/dt/1528764?logo=curseforge&label=CurseForge&color=F16436&style=for-the-badge" alt="CurseForge Downloads"></a>
+</p>
 
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?logo=minecraft)](https://www.minecraft.net/)
-[![NeoForge](https://img.shields.io/badge/NeoForge-21.1.227-DC2626)](https://neoforged.net/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+<p align="center">
+  <a href="https://www.minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.1-62B47A?logo=minecraft" alt="Minecraft"></a>
+  <a href="https://neoforged.net/"><img src="https://img.shields.io/badge/NeoForge-21.1.227%2B-DC2626" alt="NeoForge"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
-NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics) — specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: near-vertical rope strands, and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
+NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: near-vertical rope strands, and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
 
 ## How it works
 
-Simulated already has a rope-strand riding system (`ZiplineClientManager`) that lets the player slide along a rope held by Create's wrench-tagged item. That system is left completely untouched — no mixins, no overrides — so ziplines behave exactly as in vanilla Simulated.
+Simulated already has a rope-strand riding system (`ZiplineClientManager`) that lets the player slide along a rope held by Create's wrench-tagged item. That system is left completely untouched (no mixins, no overrides), so ziplines behave exactly as in vanilla Simulated.
 
 This mod adds two **separate** climb modes driven by empty-hand interaction.
 
@@ -26,7 +30,7 @@ This mod adds two **separate** climb modes driven by empty-hand interaction.
 
 - Two paired `LaunchedPlungerEntity` projectiles (fired from Simulated's Plunger Launcher) form a rope between them.
 - `PlungerClimbController` iterates `ClientLevel.entitiesForRendering()` for plungers, computes endpoint positions in world render space (accounting for Sable sublevel transforms so ropes attached to assembled physics objects work), and ray-segment-tests against each pair.
-- Embark direction is locked when grabbing the rope — for vertical-ish ropes W goes to the upper end; otherwise W goes toward whichever end the player is facing.
+- Embark direction is locked when grabbing the rope. For vertical-ish ropes W goes to the upper end; otherwise W goes toward whichever end the player is facing.
 - Slide acceleration and terminal speed scale with `sin(angle from horizontal)`, so vertical plunger ropes accelerate fastest and near-horizontal ropes don't slide beyond the descend baseline.
 - The same `RopeRidingPacket` signal drives the hanging animation in multiplayer.
 
@@ -49,9 +53,9 @@ While climbing:
 | --- | --- |
 | `Forward` (W) | Climb up (or along the rope toward the locked forward end on plunger ropes) |
 | `Back` (S) | Descend |
-| `Sprint` + `Back` | Slide — accelerates from descend speed up to a sustained slide; coasts to a stop on release |
+| `Sprint` + `Back` | Slide: accelerates from descend speed up to a sustained slide, coasts to a stop on release |
 | `Sneak` (Left Shift) | Dismount (let go, no impulse) |
-| `Jump` (Space) | Jump off — dismounts with a vanilla-jump-strength upward impulse |
+| `Jump` (Space) | Jump off; dismounts with a vanilla-jump-strength upward impulse |
 | Stand on the ground without pressing forward | Auto-dismount after a few ticks |
 | Mouse / camera | Rotates the player around the rope; you hang on the side you're facing |
 | Toggle creative flight | Dismount |
@@ -59,11 +63,11 @@ While climbing:
 
 Sneak-to-dismount matches Simulated's existing on-embark hint ("Press [LEFT SHIFT] to dismount").
 
-Embarking the existing Simulated zipline mode still works the same — look at the rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) and right-click.
+Embarking the existing Simulated zipline mode still works the same: look at the rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) and right-click.
 
 ## Configuration
 
-Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, generated on first world load. On a dedicated server the operator owns it; in singleplayer the player owns it (per world). Values auto-sync to connected clients on join, so the server is authoritative — clients can't tweak the file locally to climb faster.
+Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, generated on first world load. On a dedicated server the operator owns it; in singleplayer the player owns it (per world). Values auto-sync to connected clients on join, so the server is authoritative. Clients can't tweak the file locally to climb faster.
 
 ### `[climbing]`
 
