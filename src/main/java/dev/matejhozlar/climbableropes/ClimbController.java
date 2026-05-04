@@ -7,6 +7,7 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientRopeStrand;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
+import dev.simulated_team.simulated.index.SimClickInteractions;
 import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -214,7 +215,7 @@ public final class ClimbController {
     }
 
     private static void tickClimb(Minecraft mc, LocalPlayer player) {
-        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty()) {
+        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;
         }
@@ -256,9 +257,11 @@ public final class ClimbController {
         double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
 
         if (jumpOff) {
-            boolean atTop = remainingUp <= 0.1
+            if (ClimbableRopesConfig.ALLOW_BLOCK_MANTLE.get()) {
+                boolean atTop = remainingUp <= 0.1
                     || (player.verticalCollision && !player.onGround());
-            if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
+                if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
+            }
             Vec3 v = player.getDeltaMovement();
             player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
             disembark();
