@@ -3,6 +3,7 @@ package dev.matejhozlar.climbableropes;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
+import dev.simulated_team.simulated.index.SimClickInteractions;
 import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -55,7 +56,7 @@ final class PlungerClimbController {
     }
 
     static void tickClimb(Minecraft mc, LocalPlayer player) {
-        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty()) {
+        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;
         }

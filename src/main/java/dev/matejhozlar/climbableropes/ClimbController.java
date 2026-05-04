@@ -7,6 +7,7 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientRopeStrand;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
+import dev.simulated_team.simulated.index.SimClickInteractions;
 import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -214,7 +215,7 @@ public final class ClimbController {
     }
 
     private static void tickClimb(Minecraft mc, LocalPlayer player) {
-        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty()) {
+        if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;
         }
