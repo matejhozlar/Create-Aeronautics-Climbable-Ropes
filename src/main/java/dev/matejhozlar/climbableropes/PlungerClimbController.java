@@ -190,7 +190,7 @@ final class PlungerClimbController {
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
     }
 
-    private static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {
+    static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {
         if (mc.level == null) return null;
         double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
         Vec3 eye = player.getEyePosition();
@@ -249,7 +249,7 @@ final class PlungerClimbController {
         return dx * dx + dy * dy + dz * dz;
     }
 
-    private static Vec3 ropeEndWorld(LaunchedPlungerEntity p) {
+    static Vec3 ropeEndWorld(LaunchedPlungerEntity p) {
         Direction dir = p.getData(LaunchedPlungerEntity.PLUNGED_DIRECTION);
         Vec3 normal = Vec3.atLowerCornerOf(dir.getNormal());
         Vec3 local = p.position().add(normal.scale(PLUNGER_END_OFFSET));
@@ -271,5 +271,5 @@ final class PlungerClimbController {
         return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
     }
 
-    private record Pair(LaunchedPlungerEntity a, LaunchedPlungerEntity b) {}
+    record Pair(LaunchedPlungerEntity a, LaunchedPlungerEntity b) {}
 }

@@ -15,6 +15,7 @@ public final class ClimbableRopesConfig {
 
     public static final ModConfigSpec.BooleanValue ALLOW_VERTICAL_ROPE_CLIMBING;
     public static final ModConfigSpec.BooleanValue ALLOW_PLUNGER_CLIMBING;
+    public static final ModConfigSpec.BooleanValue ALLOW_PLUNGER_ZIPLINE;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -50,6 +51,9 @@ public final class ClimbableRopesConfig {
         ALLOW_PLUNGER_CLIMBING = b
                 .comment("Allow climbing rope lines between two plungers.")
                 .define("allowPlungerClimbing", true);
+        ALLOW_PLUNGER_ZIPLINE = b
+                .comment("Allow ziplining along plunger rope lines while holding a CHAIN_RIDEABLE-tagged item (e.g. Create's wrench), mirroring Simulated's existing zipline on hanging rope strands.")
+                .define("allowPlungerZipline", true);
         b.pop();
 
         SPEC = b.build();

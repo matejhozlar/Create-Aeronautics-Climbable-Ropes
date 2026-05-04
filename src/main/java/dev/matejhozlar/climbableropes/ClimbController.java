@@ -1,5 +1,6 @@
 package dev.matejhozlar.climbableropes;
 
+import com.simibubi.create.AllTags;
 import com.simibubi.create.foundation.utility.RaycastHelper;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
@@ -58,6 +59,7 @@ public final class ClimbController {
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
+            PlungerZiplineController.reset();
             return;
         }
         if (mc.isPaused()) return;
@@ -76,9 +78,22 @@ public final class ClimbController {
             return;
         }
 
+        if (PlungerZiplineController.isRiding()) {
+            PlungerZiplineController.ridingTick(mc, player);
+            return;
+        }
+
+        if (ZiplineClientManager.ridingRope != null) return;
+
+        if (AllTags.AllItemTags.CHAIN_RIDEABLE.matches(player.getMainHandItem())) {
+            if (!player.isShiftKeyDown() && ClimbableRopesConfig.ALLOW_PLUNGER_ZIPLINE.get()) {
+                PlungerZiplineController.tryHoverEmbark(mc, player, justPressed);
+            }
+            return;
+        }
+
         if (!player.getMainHandItem().isEmpty()) return;
         if (player.isShiftKeyDown()) return;
-        if (ZiplineClientManager.ridingRope != null) return;
 
         if (ClimbableRopesConfig.ALLOW_VERTICAL_ROPE_CLIMBING.get()) {
             UUID hovered = findVerticalHover(mc, player);
