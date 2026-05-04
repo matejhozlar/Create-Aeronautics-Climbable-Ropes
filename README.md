@@ -1,5 +1,12 @@
 # Climbable Ropes for Create Aeronautics
 
+[![Modrinth Downloads](https://img.shields.io/modrinth/dt/jImqv1M5?logo=modrinth&label=Modrinth&color=00AF5C&style=for-the-badge)](https://modrinth.com/mod/create-aeronautics-climbable-rope)
+[![CurseForge Downloads](https://img.shields.io/curseforge/dt/1528764?logo=curseforge&label=CurseForge&color=F16436&style=for-the-badge)](https://www.curseforge.com/projects/1528764)
+
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?logo=minecraft)](https://www.minecraft.net/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-21.1.227-DC2626)](https://neoforged.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics) — specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: near-vertical rope strands, and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
 
 ## How it works
