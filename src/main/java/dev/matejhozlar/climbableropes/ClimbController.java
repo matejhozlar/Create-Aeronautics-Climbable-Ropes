@@ -15,6 +15,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -35,12 +36,14 @@ public final class ClimbController {
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
+    private static final int CEILING_STUCK_DISMOUNT_TICKS = 3;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
     private static UUID climbingRope = null;
     private static int bottomGroundedTimer = 0;
+    private static int ceilingStuckTimer = 0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
@@ -54,6 +57,7 @@ public final class ClimbController {
         if (player == null || mc.level == null) {
             climbingRope = null;
             bottomGroundedTimer = 0;
+            ceilingStuckTimer = 0;
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
@@ -120,9 +124,15 @@ public final class ClimbController {
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
         climbingRope = rope;
         bottomGroundedTimer = 0;
+        ceilingStuckTimer = 0;
+        slideVelocity = 0.0;
 
         player.getAbilities().flying = false;
         player.stopFallFlying();
+        player.setDeltaMovement(Vec3.ZERO);
+        player.fallDistance = 0.0F;
+
+        snapFeetToBottom(mc, player, rope);
 
         mc.gui.setOverlayMessage(
                 Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage()),
@@ -132,12 +142,27 @@ public final class ClimbController {
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
     }
 
+    private static void snapFeetToBottom(Minecraft mc, LocalPlayer player, UUID rope) {
+        ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
+        ClientRopeStrand strand = mgr.getStrand(rope);
+        if (strand == null) return;
+        Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
+        Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
+        Vec3 bottom = first.y < last.y ? first : last;
+        Vec3 candidate = new Vec3(bottom.x, bottom.y, bottom.z);
+        AABB aabb = player.getBoundingBox().move(candidate.subtract(player.position()));
+        if (mc.level.noCollision(player, aabb)) {
+            player.setPos(candidate);
+        }
+    }
+
     private static void disembark() {
         if (climbingRope != null) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, true));
         }
         climbingRope = null;
         bottomGroundedTimer = 0;
+        ceilingStuckTimer = 0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
@@ -177,13 +202,24 @@ public final class ClimbController {
             return;
         }
 
-        Vec3 ropeWorld = JOMLConversion.toMojang(query.position());
-        Vec3 anchor = anchor(player);
-
         Vec3 firstPoint = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 lastPoint = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottomPoint = firstPoint.y < lastPoint.y ? firstPoint : lastPoint;
         Vec3 topPoint = firstPoint.y < lastPoint.y ? lastPoint : firstPoint;
+
+        if (player.position().y < bottomPoint.y) {
+            player.setPos(player.position().x, bottomPoint.y, player.position().z);
+            Vec3 dm = player.getDeltaMovement();
+            if (dm.y < 0) player.setDeltaMovement(dm.x, 0.0, dm.z);
+        }
+
+        if (player.position().y > topPoint.y + 1.0) {
+            disembark();
+            return;
+        }
+
+        Vec3 ropeWorld = JOMLConversion.toMojang(query.position());
+        Vec3 anchor = anchor(player);
 
         if (player.onGround() && !climbUp && anchor.y < bottomPoint.y + BOTTOM_DISMOUNT_OFFSET) {
             if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
@@ -195,6 +231,19 @@ public final class ClimbController {
         }
 
         double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
+
+        if (climbUp && remainingUp <= 0.1) {
+            if (trySnapAboveCeiling(mc, player, topPoint)) return;
+        }
+        if (climbUp && player.verticalCollision && !player.onGround()) {
+            if (++ceilingStuckTimer >= CEILING_STUCK_DISMOUNT_TICKS) {
+                if (trySnapAboveCeiling(mc, player, topPoint)) return;
+                ceilingStuckTimer = 0;
+            }
+        } else {
+            ceilingStuckTimer = 0;
+        }
+
         if (climbUp && remainingUp <= 0.0) climbUp = false;
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
@@ -220,6 +269,11 @@ public final class ClimbController {
         else if (slideVelocity > 0) yVel = -slideVelocity;
         else yVel = 0.0;
 
+        if (yVel < 0 && player.position().y <= bottomPoint.y + 1.0E-3) {
+            yVel = 0.0;
+            slideVelocity = 0.0;
+        }
+
         double yawRad = Math.toRadians(player.getYRot());
         double dx = ropeWorld.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET - anchor.x;
         double dz = ropeWorld.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET - anchor.z;
@@ -244,5 +298,25 @@ public final class ClimbController {
     private static Vec3 anchor(LocalPlayer player) {
         double chainYOffset = 0.5 * player.getScale();
         return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
+    }
+
+    private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
+        Vec3 playerPos = player.position();
+        Vec3[] candidates = {
+                new Vec3(topPoint.x, topPoint.y + 0.05, topPoint.z),
+                new Vec3(playerPos.x, topPoint.y + 0.05, playerPos.z),
+                new Vec3(topPoint.x, topPoint.y + 1.0, topPoint.z),
+        };
+        for (Vec3 candidate : candidates) {
+            AABB aabb = player.getBoundingBox().move(candidate.subtract(playerPos));
+            if (mc.level.noCollision(player, aabb)) {
+                player.setPos(candidate);
+                player.setDeltaMovement(Vec3.ZERO);
+                player.fallDistance = 0.0F;
+                disembark();
+                return true;
+            }
+        }
+        return false;
     }
 }
