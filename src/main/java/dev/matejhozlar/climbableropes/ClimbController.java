@@ -38,6 +38,7 @@ public final class ClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
+    private static final double AT_BOTTOM_DIST_SQR = 1.0;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
@@ -143,7 +144,7 @@ public final class ClimbController {
         player.setDeltaMovement(Vec3.ZERO);
         player.fallDistance = 0.0F;
 
-        snapToBottomOffset(mc, player, rope);
+        snapToEmbarkPoint(mc, player, rope);
 
         mc.gui.setOverlayMessage(
                 Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage()),
@@ -153,30 +154,50 @@ public final class ClimbController {
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
     }
 
-    // Snap directly to the side-offset hanging position so the player doesn't visibly clip
-    // through the rope center for a tick before tickClimb's snap-pull settles them.
-    private static void snapToBottomOffset(Minecraft mc, LocalPlayer player, UUID rope) {
+    // Snap to the rope point closest to where the player clicked, applying the side-offset hang
+    // position so the player doesn't visibly clip the rope center for a tick before tickClimb's
+    // snap-pull settles them. At the lower endpoint, use the rope position directly so the
+    // player's feet land on the dangling end; mid-rope, place the player's anchor on the click
+    // point so they grab the rope at hand height.
+    private static void snapToEmbarkPoint(Minecraft mc, LocalPlayer player, UUID rope) {
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
         ClientRopeStrand strand = mgr.getStrand(rope);
         if (strand == null) return;
+
+        Vec3 clickPoint = JOMLConversion.toMojang(
+                ZiplineClientManager.getClosestPointOnStrand(strand, player).position());
+
         Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottom = first.y < last.y ? first : last;
+        boolean atBottom = clickPoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
+
+        double targetY;
+        Vec3 ropePoint;
+        if (atBottom) {
+            ropePoint = bottom;
+            targetY = bottom.y;
+        } else {
+            ropePoint = clickPoint;
+            double chainYOffset = 0.5 * player.getScale();
+            targetY = clickPoint.y - (player.getBoundingBox().getYsize() + chainYOffset);
+        }
 
         double yawRad = Math.toRadians(player.getYRot());
         Vec3 offsetTarget = new Vec3(
-                bottom.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
-                bottom.y,
-                bottom.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
+                ropePoint.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
+                targetY,
+                ropePoint.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
 
         AABB offsetAabb = player.getBoundingBox().move(offsetTarget.subtract(player.position()));
         if (mc.level.noCollision(player, offsetAabb)) {
             player.setPos(offsetTarget);
             return;
         }
-        AABB centerAabb = player.getBoundingBox().move(bottom.subtract(player.position()));
+        Vec3 centerTarget = new Vec3(ropePoint.x, targetY, ropePoint.z);
+        AABB centerAabb = player.getBoundingBox().move(centerTarget.subtract(player.position()));
         if (mc.level.noCollision(player, centerAabb)) {
-            player.setPos(bottom);
+            player.setPos(centerTarget);
         }
     }
 
