@@ -1,4 +1,7 @@
-## Version 1.4.1
+## Version 1.5.0
 
-### Fixed
-- Fixed grabbing a rope teleporting the player to the rope's lowest endpoint instead of the point closest to where they clicked. This was most noticeable on ropes spanning flying sublevels, where embarking could yank the player hundreds of blocks away from their click position.
+### Added
+- Added `allowBlockMantle` config option to control whether jumping off the top of a rope mantles onto the block above. When disabled, jumping off at the top gives a normal upward impulse instead. Defaults to enabled.
+
+### Changed
+- Players now automatically dismount ropes when grabbing a Create mechanical handle, preventing conflicts between climbing and handle interactions.
