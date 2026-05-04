@@ -256,9 +256,11 @@ public final class ClimbController {
         double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
 
         if (jumpOff) {
-            boolean atTop = remainingUp <= 0.1
+            if (ClimbableRopesConfig.ALLOW_BLOCK_MANTLE.get()) {
+                boolean atTop = remainingUp <= 0.1
                     || (player.verticalCollision && !player.onGround());
-            if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
+                if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
+            }
             Vec3 v = player.getDeltaMovement();
             player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
             disembark();
