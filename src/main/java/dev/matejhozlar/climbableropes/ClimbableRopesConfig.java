@@ -56,7 +56,7 @@ public final class ClimbableRopesConfig {
                 .comment("Allow ziplining along plunger rope lines while holding a CHAIN_RIDEABLE-tagged item (e.g. Create's wrench), mirroring Simulated's existing zipline on hanging rope strands.")
                 .define("allowPlungerZipline", true);
         ALLOW_BLOCK_MANTLE = b
-                .comment("Allow mantling onto blocks when on top of the rope.")
+                .comment("Allow mantling onto the block above the rope when jumping off at its top end. When disabled, jumping off at the top performs a normal upward impulse instead.")
                 .define("allowBlockMantle", true);
         b.pop();
 
