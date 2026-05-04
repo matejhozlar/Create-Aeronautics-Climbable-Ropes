@@ -36,14 +36,12 @@ public final class ClimbController {
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
-    private static final int CEILING_STUCK_DISMOUNT_TICKS = 3;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
     private static UUID climbingRope = null;
     private static int bottomGroundedTimer = 0;
-    private static int ceilingStuckTimer = 0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
@@ -57,7 +55,6 @@ public final class ClimbController {
         if (player == null || mc.level == null) {
             climbingRope = null;
             bottomGroundedTimer = 0;
-            ceilingStuckTimer = 0;
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
@@ -124,7 +121,6 @@ public final class ClimbController {
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
         climbingRope = rope;
         bottomGroundedTimer = 0;
-        ceilingStuckTimer = 0;
         slideVelocity = 0.0;
 
         player.getAbilities().flying = false;
@@ -132,7 +128,7 @@ public final class ClimbController {
         player.setDeltaMovement(Vec3.ZERO);
         player.fallDistance = 0.0F;
 
-        snapFeetToBottom(mc, player, rope);
+        snapToBottomOffset(mc, player, rope);
 
         mc.gui.setOverlayMessage(
                 Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage()),
@@ -142,17 +138,30 @@ public final class ClimbController {
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
     }
 
-    private static void snapFeetToBottom(Minecraft mc, LocalPlayer player, UUID rope) {
+    // Snap directly to the side-offset hanging position so the player doesn't visibly clip
+    // through the rope center for a tick before tickClimb's snap-pull settles them.
+    private static void snapToBottomOffset(Minecraft mc, LocalPlayer player, UUID rope) {
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
         ClientRopeStrand strand = mgr.getStrand(rope);
         if (strand == null) return;
         Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottom = first.y < last.y ? first : last;
-        Vec3 candidate = new Vec3(bottom.x, bottom.y, bottom.z);
-        AABB aabb = player.getBoundingBox().move(candidate.subtract(player.position()));
-        if (mc.level.noCollision(player, aabb)) {
-            player.setPos(candidate);
+
+        double yawRad = Math.toRadians(player.getYRot());
+        Vec3 offsetTarget = new Vec3(
+                bottom.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
+                bottom.y,
+                bottom.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
+
+        AABB offsetAabb = player.getBoundingBox().move(offsetTarget.subtract(player.position()));
+        if (mc.level.noCollision(player, offsetAabb)) {
+            player.setPos(offsetTarget);
+            return;
+        }
+        AABB centerAabb = player.getBoundingBox().move(bottom.subtract(player.position()));
+        if (mc.level.noCollision(player, centerAabb)) {
+            player.setPos(bottom);
         }
     }
 
@@ -162,7 +171,6 @@ public final class ClimbController {
         }
         climbingRope = null;
         bottomGroundedTimer = 0;
-        ceilingStuckTimer = 0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
@@ -191,17 +199,6 @@ public final class ClimbController {
         boolean dismount = mc.options.keyShift.isDown();
         boolean jumpOff = mc.options.keyJump.isDown();
 
-        if (jumpOff) {
-            Vec3 v = player.getDeltaMovement();
-            player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
-            disembark();
-            return;
-        }
-        if (dismount) {
-            disembark();
-            return;
-        }
-
         Vec3 firstPoint = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 lastPoint = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottomPoint = firstPoint.y < lastPoint.y ? firstPoint : lastPoint;
@@ -220,6 +217,21 @@ public final class ClimbController {
 
         Vec3 ropeWorld = JOMLConversion.toMojang(query.position());
         Vec3 anchor = anchor(player);
+        double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
+
+        if (jumpOff) {
+            boolean atTop = remainingUp <= 0.1
+                    || (player.verticalCollision && !player.onGround());
+            if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
+            Vec3 v = player.getDeltaMovement();
+            player.setDeltaMovement(v.x, Math.max(v.y, ClimbableRopesConfig.JUMP_OFF_VELOCITY.get()), v.z);
+            disembark();
+            return;
+        }
+        if (dismount) {
+            disembark();
+            return;
+        }
 
         if (player.onGround() && !climbUp && anchor.y < bottomPoint.y + BOTTOM_DISMOUNT_OFFSET) {
             if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
@@ -228,20 +240,6 @@ public final class ClimbController {
             }
         } else {
             bottomGroundedTimer = 0;
-        }
-
-        double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
-
-        if (climbUp && remainingUp <= 0.1) {
-            if (trySnapAboveCeiling(mc, player, topPoint)) return;
-        }
-        if (climbUp && player.verticalCollision && !player.onGround()) {
-            if (++ceilingStuckTimer >= CEILING_STUCK_DISMOUNT_TICKS) {
-                if (trySnapAboveCeiling(mc, player, topPoint)) return;
-                ceilingStuckTimer = 0;
-            }
-        } else {
-            ceilingStuckTimer = 0;
         }
 
         if (climbUp && remainingUp <= 0.0) climbUp = false;

@@ -55,7 +55,7 @@ While climbing:
 | `Back` (S) | Descend |
 | `Sprint` + `Back` | Slide: accelerates from descend speed up to a sustained slide, coasts to a stop on release |
 | `Sneak` (Left Shift) | Dismount (let go, no impulse) |
-| `Jump` (Space) | Jump off; dismounts with a vanilla-jump-strength upward impulse |
+| `Jump` (Space) | Jump off with a vanilla-jump-strength upward impulse. When you're at the top of the rope and a block is above, jump instead mantles you onto that block. |
 | Stand on the ground without pressing forward | Auto-dismount after a few ticks |
 | Mouse / camera | Rotates the player around the rope; you hang on the side you're facing |
 | Toggle creative flight | Dismount |
