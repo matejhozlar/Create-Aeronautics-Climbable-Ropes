@@ -34,6 +34,13 @@ This mod adds two **separate** climb modes driven by empty-hand interaction.
 - Slide acceleration and terminal speed scale with `sin(angle from horizontal)`, so vertical plunger ropes accelerate fastest and near-horizontal ropes don't slide beyond the descend baseline.
 - The same `RopeRidingPacket` signal drives the hanging animation in multiplayer.
 
+### Plunger ziplines
+
+- Right-clicking a plunger rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) embarks the player as a zipline rider rather than a climber.
+- `PlungerZiplineController` mirrors Simulated's `ZiplineClientManager.ridingTick` physics: per-tick damping (`v * -0.6`, with the along-rope component subtracted), assistance (`dir * v.dot(dir) * 0.04`), and a spring force pulling the player anchor toward the closest point on the segment. Gravity and normal `WASD` motion come from vanilla player physics, so a horizontal plunger rope can be walked across as a temporary bridge.
+- No steepness gate: plunger ropes are taut straight lines, so any angle is rideable (unlike the strand zipline which gates by `maxRopeZiplineAngle`).
+- Dismount on Sneak, fly toggle, more than 5 ticks grounded, plunger removed/unplunged, or pushed past either endpoint with `velocity.dot(dir) > 0.6`.
+
 ## Building
 
 This depends on Simulated's compiled jar. Either:
@@ -65,6 +72,10 @@ Sneak-to-dismount matches Simulated's existing on-embark hint ("Press [LEFT SHIF
 
 Embarking the existing Simulated zipline mode still works the same: look at the rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) and right-click.
 
+### Ziplining a plunger rope
+
+Hold a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench), look at a plunger rope within block-interaction range, and right-click. You'll latch on and slide under gravity + your own input. Sneak to dismount, or run off either endpoint with enough forward momentum.
+
 ## Configuration
 
 Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, generated on first world load. On a dedicated server the operator owns it; in singleplayer the player owns it (per world). Values auto-sync to connected clients on join, so the server is authoritative. Clients can't tweak the file locally to climb faster.
@@ -91,5 +102,6 @@ Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, 
 | --- | --- | --- |
 | `allowVerticalRopeClimbing` | `true` | Toggle vertical hanging-rope climb. |
 | `allowPlungerClimbing` | `true` | Toggle plunger-line climb. |
+| `allowPlungerZipline` | `true` | Toggle ziplining along plunger ropes with a `CHAIN_RIDEABLE`-tagged item. |
 
 Toggling a feature off only blocks new embarkations; in-progress climbs finish normally.
