@@ -32,13 +32,14 @@ import java.util.UUID;
 @EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
 public final class ClimbController {
     private static final double SNAP_PULL = 0.55;
-    private static final double SNAP_HORIZ_CAP = 0.35;
+    private static final double SNAP_VEL_CAP = 0.35;
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     private static final double VERTICAL_BIAS = 0.5;
+    private static final double MAX_LEASH_DIST_SQR = 9.0;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
@@ -259,6 +260,10 @@ public final class ClimbController {
 
         Vec3 anchor = anchor(player);
         StrandQuery sq = findClosestSegment(strand, anchor);
+        if (sq.distSqr > MAX_LEASH_DIST_SQR) {
+            disembark();
+            return;
+        }
         Vec3 ropeWorld = sq.position;
         Vec3 tangent = sq.tangent;
         Vec3 forwardAlongStrand = forwardIsLast ? tangent : tangent.scale(-1.0);
@@ -302,13 +307,13 @@ public final class ClimbController {
         double slideAccel = ClimbableRopesConfig.SLIDE_ACCELERATION.get();
         double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
-        double sinAngle = Math.abs(forwardAlongStrand.y);
-        boolean slideEffective = climbDown && sprint && slideSpeed * sinAngle > descendSpeed;
+        double verticalComponent = Math.abs(forwardAlongStrand.y);
+        boolean slideEffective = climbDown && sprint && slideSpeed * verticalComponent > descendSpeed;
         if (climbUp) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
-            slideVelocity = Math.min(slideSpeed * sinAngle, slideVelocity + slideAccel * sinAngle);
+            slideVelocity = Math.min(slideSpeed * verticalComponent, slideVelocity + slideAccel * verticalComponent);
         } else if (slideVelocity > 0) {
             slideVelocity = Math.max(0.0, slideVelocity - slideDecel);
         }
@@ -334,10 +339,11 @@ public final class ClimbController {
         double xVel = dx * SNAP_PULL;
         double yVel = dy * SNAP_PULL;
         double zVel = dz * SNAP_PULL;
-        double horizMag = Math.hypot(xVel, zVel);
-        if (horizMag > SNAP_HORIZ_CAP) {
-            double scale = SNAP_HORIZ_CAP / horizMag;
+        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
+        if (snapMag > SNAP_VEL_CAP) {
+            double scale = SNAP_VEL_CAP / snapMag;
             xVel *= scale;
+            yVel *= scale;
             zVel *= scale;
         }
 
@@ -389,7 +395,7 @@ public final class ClimbController {
             }
             cumulative += abLen;
         }
-        return new StrandQuery(minPoint, minTangent, minArc);
+        return new StrandQuery(minPoint, minTangent, minArc, minDistSq);
     }
 
     private static double totalArcLength(ClientRopeStrand strand) {
@@ -403,7 +409,7 @@ public final class ClimbController {
         return s;
     }
 
-    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart) {}
+    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();
