@@ -13,6 +13,10 @@
 
 NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: hanging rope strands (vertical by default; the angle gate is configurable up to fully horizontal), and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
 
+<p align="center">
+  <img src="docs/images/climbable-ropes-1.jpg" alt="Player climbing a rope hanging from an airship at sunset" width="720">
+</p>
+
 ## How it works
 
 Simulated already has a rope-strand riding system (`ZiplineClientManager`) that lets the player slide along a rope held by Create's wrench-tagged item. That system is left completely untouched (no mixins, no overrides), so ziplines behave exactly as in vanilla Simulated.
