@@ -31,19 +31,20 @@ import java.util.UUID;
 
 @EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
 public final class ClimbController {
-    public static final double VERTICAL_THRESHOLD = 0.85;
-
     private static final double SNAP_PULL = 0.55;
-    private static final double SNAP_HORIZ_CAP = 0.35;
+    private static final double SNAP_VEL_CAP = 0.35;
     private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
+    private static final double VERTICAL_BIAS = 0.5;
+    private static final double MAX_LEASH_DIST_SQR = 9.0;
 
     private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
     private static UUID climbingRope = null;
+    private static boolean forwardIsLast = true;
     private static int bottomGroundedTimer = 0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
@@ -57,6 +58,7 @@ public final class ClimbController {
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             climbingRope = null;
+            forwardIsLast = true;
             bottomGroundedTimer = 0;
             prevUseDown = false;
             slideVelocity = 0.0;
@@ -132,13 +134,15 @@ public final class ClimbController {
 
         ZiplineClientManager.ClosestQuery query =
                 ZiplineClientManager.getClosestPointOnStrand(strand, player);
-        return Math.abs(query.normal().dot(UP)) >= VERTICAL_THRESHOLD ? found : null;
+        double minVerticalDot = Math.cos(Math.toRadians(ClimbableRopesConfig.MAX_CLIMB_ANGLE_FROM_VERTICAL.get()));
+        return Math.abs(query.normal().dot(UP)) >= minVerticalDot ? found : null;
     }
 
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
         climbingRope = rope;
         bottomGroundedTimer = 0;
         slideVelocity = 0.0;
+        forwardIsLast = computeForwardIsLast(mc, player, rope);
 
         player.getAbilities().flying = false;
         player.stopFallFlying();
@@ -207,11 +211,26 @@ public final class ClimbController {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, true));
         }
         climbingRope = null;
+        forwardIsLast = true;
         bottomGroundedTimer = 0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+    }
+
+    private static boolean computeForwardIsLast(Minecraft mc, LocalPlayer player, UUID rope) {
+        ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
+        ClientRopeStrand strand = mgr.getStrand(rope);
+        if (strand == null || strand.getPoints().size() < 2) return true;
+        Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
+        Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
+        Vec3 chord = last.subtract(first);
+        double chordLen = chord.length();
+        if (chordLen < 1.0E-4) return true;
+        Vec3 chordDir = chord.scale(1.0 / chordLen);
+        if (Math.abs(chordDir.y) > VERTICAL_BIAS) return last.y > first.y;
+        return player.getLookAngle().dot(chordDir) >= 0;
     }
 
     private static void tickClimb(Minecraft mc, LocalPlayer player) {
@@ -222,13 +241,10 @@ public final class ClimbController {
 
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
         ClientRopeStrand strand = mgr.getStrand(climbingRope);
-        if (strand == null) {
+        if (strand == null || strand.getPoints().size() < 2) {
             disembark();
             return;
         }
-
-        ZiplineClientManager.ClosestQuery query =
-                ZiplineClientManager.getClosestPointOnStrand(strand, player);
 
         boolean climbUp = mc.options.keyUp.isDown();
         boolean climbDown = mc.options.keyDown.isDown();
@@ -238,28 +254,30 @@ public final class ClimbController {
 
         Vec3 firstPoint = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 lastPoint = JOMLConversion.toMojang(strand.getPoints().getLast().position());
-        Vec3 bottomPoint = firstPoint.y < lastPoint.y ? firstPoint : lastPoint;
-        Vec3 topPoint = firstPoint.y < lastPoint.y ? lastPoint : firstPoint;
+        boolean topIsLast = lastPoint.y >= firstPoint.y;
+        Vec3 bottomPoint = topIsLast ? firstPoint : lastPoint;
+        Vec3 topPoint = topIsLast ? lastPoint : firstPoint;
 
-        if (player.position().y < bottomPoint.y) {
-            player.setPos(player.position().x, bottomPoint.y, player.position().z);
-            Vec3 dm = player.getDeltaMovement();
-            if (dm.y < 0) player.setDeltaMovement(dm.x, 0.0, dm.z);
-        }
-
-        if (player.position().y > topPoint.y + 1.0) {
+        Vec3 anchor = anchor(player);
+        StrandQuery sq = findClosestSegment(strand, anchor);
+        if (sq.distSqr > MAX_LEASH_DIST_SQR) {
             disembark();
             return;
         }
+        Vec3 ropeWorld = sq.position;
+        Vec3 tangent = sq.tangent;
+        Vec3 forwardAlongStrand = forwardIsLast ? tangent : tangent.scale(-1.0);
 
-        Vec3 ropeWorld = JOMLConversion.toMojang(query.position());
-        Vec3 anchor = anchor(player);
-        double remainingUp = Math.max(0.0, topPoint.y - anchor.y);
+        double sTotal = totalArcLength(strand);
+        double sFromIndex0 = sq.arcLengthFromStart;
+        double arcRemainingForward = Math.max(0.0, forwardIsLast ? sTotal - sFromIndex0 : sFromIndex0);
+        double arcRemainingBackward = Math.max(0.0, sTotal - arcRemainingForward);
+        double arcRemainingToTop = Math.max(0.0, topIsLast ? sTotal - sFromIndex0 : sFromIndex0);
 
         if (jumpOff) {
             if (ClimbableRopesConfig.ALLOW_BLOCK_MANTLE.get()) {
-                boolean atTop = remainingUp <= 0.1
-                    || (player.verticalCollision && !player.onGround());
+                boolean atTop = arcRemainingToTop <= 0.1
+                    || (player.verticalCollision && !player.onGround() && anchor.y >= topPoint.y - 0.5);
                 if (atTop && trySnapAboveCeiling(mc, player, topPoint)) return;
             }
             Vec3 v = player.getDeltaMovement();
@@ -281,7 +299,7 @@ public final class ClimbController {
             bottomGroundedTimer = 0;
         }
 
-        if (climbUp && remainingUp <= 0.0) climbUp = false;
+        if (climbUp && arcRemainingForward <= 0.0) climbUp = false;
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
         double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
@@ -289,42 +307,47 @@ public final class ClimbController {
         double slideAccel = ClimbableRopesConfig.SLIDE_ACCELERATION.get();
         double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
-        boolean sliding = climbDown && sprint;
+        double verticalComponent = Math.abs(forwardAlongStrand.y);
+        boolean slideEffective = climbDown && sprint && slideSpeed * verticalComponent > descendSpeed;
         if (climbUp) {
             slideVelocity = 0.0;
-        } else if (sliding) {
+        } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
-            slideVelocity = Math.min(slideSpeed, slideVelocity + slideAccel);
+            slideVelocity = Math.min(slideSpeed * verticalComponent, slideVelocity + slideAccel * verticalComponent);
         } else if (slideVelocity > 0) {
             slideVelocity = Math.max(0.0, slideVelocity - slideDecel);
         }
 
-        double yVel;
-        if (climbUp) yVel = Math.min(climbSpeed, remainingUp);
-        else if (slideVelocity > descendSpeed) yVel = -slideVelocity;
-        else if (climbDown) yVel = -descendSpeed;
-        else if (slideVelocity > 0) yVel = -slideVelocity;
-        else yVel = 0.0;
+        double speedAlong;
+        if (climbUp) speedAlong = Math.min(climbSpeed, arcRemainingForward);
+        else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
+        else if (climbDown) speedAlong = -descendSpeed;
+        else if (slideVelocity > 0) speedAlong = -slideVelocity;
+        else speedAlong = 0.0;
 
-        if (yVel < 0 && player.position().y <= bottomPoint.y + 1.0E-3) {
-            yVel = 0.0;
+        if (speedAlong < 0 && arcRemainingBackward <= 1.0E-3) {
+            speedAlong = 0.0;
             slideVelocity = 0.0;
         }
 
-        double yawRad = Math.toRadians(player.getYRot());
-        double dx = ropeWorld.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET - anchor.x;
-        double dz = ropeWorld.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET - anchor.z;
-        double xVel = dx * SNAP_PULL;
-        double zVel = dz * SNAP_PULL;
+        Vec3 climbVel = forwardAlongStrand.scale(speedAlong);
 
-        double horizMag = Math.hypot(xVel, zVel);
-        if (horizMag > SNAP_HORIZ_CAP) {
-            double scale = SNAP_HORIZ_CAP / horizMag;
+        Vec3 target = ropeWorld.add(sideOffset(player, forwardAlongStrand));
+        double dx = target.x - anchor.x;
+        double dy = target.y - anchor.y;
+        double dz = target.z - anchor.z;
+        double xVel = dx * SNAP_PULL;
+        double yVel = dy * SNAP_PULL;
+        double zVel = dz * SNAP_PULL;
+        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
+        if (snapMag > SNAP_VEL_CAP) {
+            double scale = SNAP_VEL_CAP / snapMag;
             xVel *= scale;
+            yVel *= scale;
             zVel *= scale;
         }
 
-        player.setDeltaMovement(xVel, yVel, zVel);
+        player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
 
         if (AnimationTickHolder.getTicks() % 10 == 0) {
@@ -336,6 +359,57 @@ public final class ClimbController {
         double chainYOffset = 0.5 * player.getScale();
         return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
     }
+
+    private static Vec3 sideOffset(LocalPlayer player, Vec3 ropeDir) {
+        double yawRad = Math.toRadians(player.getYRot());
+        Vec3 forward = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
+        Vec3 perp = forward.subtract(ropeDir.scale(forward.dot(ropeDir)));
+        double len = perp.length();
+        if (len < 1e-6) return Vec3.ZERO;
+        return perp.scale(CLIMB_SIDE_OFFSET / len);
+    }
+
+    private static StrandQuery findClosestSegment(ClientRopeStrand strand, Vec3 target) {
+        var points = strand.getPoints();
+        double minDistSq = Double.MAX_VALUE;
+        Vec3 minPoint = Vec3.ZERO;
+        Vec3 minTangent = new Vec3(0.0, 1.0, 0.0);
+        double minArc = 0.0;
+        double cumulative = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec3 a = JOMLConversion.toMojang(points.get(i).position());
+            Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
+            Vec3 ab = b.subtract(a);
+            double abLen = ab.length();
+            if (abLen >= 1e-6) {
+                Vec3 dir = ab.scale(1.0 / abLen);
+                double along = Math.max(0.0, Math.min(abLen, target.subtract(a).dot(dir)));
+                Vec3 onSeg = a.add(dir.scale(along));
+                double distSq = onSeg.distanceToSqr(target);
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                    minPoint = onSeg;
+                    minTangent = dir;
+                    minArc = cumulative + along;
+                }
+            }
+            cumulative += abLen;
+        }
+        return new StrandQuery(minPoint, minTangent, minArc, minDistSq);
+    }
+
+    private static double totalArcLength(ClientRopeStrand strand) {
+        var points = strand.getPoints();
+        double s = 0.0;
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vec3 a = JOMLConversion.toMojang(points.get(i).position());
+            Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
+            s += a.distanceTo(b);
+        }
+        return s;
+    }
+
+    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();
