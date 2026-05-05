@@ -8,6 +8,7 @@ public final class ClimbableRopesConfig {
     public static final ModConfigSpec.DoubleValue CLIMB_SPEED;
     public static final ModConfigSpec.DoubleValue DESCEND_SPEED;
     public static final ModConfigSpec.DoubleValue JUMP_OFF_VELOCITY;
+    public static final ModConfigSpec.DoubleValue MAX_CLIMB_ANGLE_FROM_VERTICAL;
 
     public static final ModConfigSpec.DoubleValue SLIDE_SPEED;
     public static final ModConfigSpec.DoubleValue SLIDE_ACCELERATION;
@@ -31,6 +32,11 @@ public final class ClimbableRopesConfig {
         JUMP_OFF_VELOCITY = b
                 .comment("Upward impulse applied when jumping off the rope.")
                 .defineInRange("jumpOffVelocity", 0.42, 0.0, 5.0);
+        MAX_CLIMB_ANGLE_FROM_VERTICAL = b
+                .comment(
+                        "Maximum angle from vertical (in degrees) at which a hanging rope segment can be grabbed for climbing.",
+                        "0 = only perfectly vertical ropes; 90 = any angle including horizontal. Increase to climb diagonal lines.")
+                .defineInRange("maxClimbAngleFromVertical", 31.79, 0.0, 90.0);
         b.pop();
 
         b.comment("Sprint-while-descending slide mechanics.").push("sliding");
