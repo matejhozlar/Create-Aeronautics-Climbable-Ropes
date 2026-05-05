@@ -11,7 +11,7 @@
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
-NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: near-vertical rope strands, and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
+NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: hanging rope strands (vertical by default; the angle gate is configurable up to fully horizontal), and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
 
 ## How it works
 
@@ -19,12 +19,14 @@ Simulated already has a rope-strand riding system (`ZiplineClientManager`) that 
 
 This mod adds two **separate** climb modes driven by empty-hand interaction.
 
-### Vertical rope strands
+### Hanging rope strands
 
-- The player right-clicks a near-vertical rope strand with an **empty main hand**.
+- The player right-clicks a rope strand with an **empty main hand**.
 - A `ClientTickEvent.Post` handler (`ClimbController`) raycasts against rope strands using Simulated's own `ZiplineClientManager.raycastRope` helper.
-- If a strand within reach is hit and the segment's closest-point normal is at least 85% vertical (~32° from perfect vertical), we record the rope UUID, send Simulated's `RopeRidingPacket` so the server treats the player as riding (no fall damage, hanging animation, etc.), and run per-tick physics.
-- W climbs up, S descends, sprint + S slides faster (smooth acceleration up, smooth coast back down).
+- If a strand within reach is hit and the segment is within `maxClimbAngleFromVertical` of vertical (default ~32°, configurable up to 90° for fully horizontal ropes), we record the rope UUID, send Simulated's `RopeRidingPacket` so the server treats the player as riding (no fall damage, hanging animation, etc.), and run per-tick physics.
+- Climb motion follows the local rope tangent rather than pure Y, with arc-length-based top/bottom limits and a 3D snap-pull, so diagonal and horizontal climbs feel natural.
+- Forward direction (W) is locked at embark: vertical-ish ropes use the higher-Y endpoint; for shallower ropes the player's look direction wins, so W follows how the player attached, not how the rope was placed.
+- W climbs up, S descends, sprint + S slides faster (smooth acceleration up, smooth coast back down). On near-horizontal ropes, slide acceleration scales with `|tangent.y|`, so a flat rope just travels at descend speed.
 
 ### Plunger ropes
 
@@ -84,9 +86,10 @@ Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, 
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `climbSpeed` | `0.18` | Vertical speed when holding forward (blocks/tick). |
-| `descendSpeed` | `0.22` | Vertical speed when holding back (blocks/tick). |
+| `climbSpeed` | `0.18` | Speed along the rope when holding forward (blocks/tick). |
+| `descendSpeed` | `0.22` | Speed along the rope when holding back (blocks/tick). |
 | `jumpOffVelocity` | `0.42` | Upward impulse applied when jumping off. |
+| `maxClimbAngleFromVertical` | `31.79` | Maximum angle from vertical (degrees) at which a hanging-rope segment can be grabbed. The default matches the legacy 0.85 dot-product threshold. Raise toward 90 to enable diagonal/horizontal climbs. |
 
 ### `[sliding]`
 
@@ -100,8 +103,9 @@ Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, 
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `allowVerticalRopeClimbing` | `true` | Toggle vertical hanging-rope climb. |
+| `allowVerticalRopeClimbing` | `true` | Toggle hanging-rope climb. |
 | `allowPlungerClimbing` | `true` | Toggle plunger-line climb. |
 | `allowPlungerZipline` | `true` | Toggle ziplining along plunger ropes with a `CHAIN_RIDEABLE`-tagged item. |
+| `allowBlockMantle` | `true` | When jumping off at the top end of a rope, mantle onto the block above instead of getting a normal upward impulse. |
 
 Toggling a feature off only blocks new embarkations; in-progress climbs finish normally.
