@@ -47,7 +47,6 @@ public final class ClimbController {
 
     private ClimbController() {}
 
-    // Run after Simulated's tick so we overwrite hoveringRope (which it clears for empty hand).
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
@@ -133,9 +132,6 @@ public final class ClimbController {
         return Math.abs(query.normal().y) >= minVerticalDot ? found : null;
     }
 
-    // Replaces ZiplineClientManager.raycastRope, which silently misses any rope segment whose
-    // tangent is antiparallel to UP — SimMathUtils.getQuaternionfFromVectorRotation produces a
-    // zero quaternion in that case and normalize() turns it into NaN, so the OBB clip fails.
     private static UUID raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
                                        double maxRange, double bestDistSqr) {
         UUID best = null;
@@ -200,11 +196,6 @@ public final class ClimbController {
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
     }
 
-    // Snap to the rope point closest to where the player clicked, applying the side-offset hang
-    // position so the player doesn't visibly clip the rope center for a tick before tickClimb's
-    // snap-pull settles them. At the lower endpoint, use the rope position directly so the
-    // player's feet land on the dangling end; mid-rope, place the player's anchor on the click
-    // point so they grab the rope at hand height.
     private static void snapToEmbarkPoint(Minecraft mc, LocalPlayer player, UUID rope) {
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
         ClientRopeStrand strand = mgr.getStrand(rope);

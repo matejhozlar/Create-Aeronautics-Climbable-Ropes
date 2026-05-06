@@ -96,7 +96,6 @@ configurations {
 }
 
 dependencies {
-    // === Compile-time API surfaces we mixin into / reference ===
     compileOnly("dev.ryanhcode.sable:sable-neoforge-${minecraft_version}:${sable_version}") {
         exclude group: "foundry.veil"
     }
@@ -105,19 +104,13 @@ dependencies {
     compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
 
-    // Simulated jar — drop the built jar into ./libs/ or build Simulated-Project first
-    // (flatDir picks up ../Simulated-Project/simulated/neoforge/build/libs/ automatically)
     compileOnly fileTree(dir: 'libs', include: ['simulated-*.jar'])
     compileOnly fileTree(dir: '../Simulated-Project/simulated/neoforge/build/libs', include: ['*.jar'])
     compileOnly fileTree(dir: '../Simulated-Project/all-neoforge/build/libs', include: ['*.jar'])
 
-    // Veil is a transitive Sable runtime dep we reference for VeilPacketManager
     compileOnly("foundry.veil:veil-neoforge-${minecraft_version}:${veil_version}") { transitive = false }
 
-    // === Dev runtime: full mod jars so runClient boots a world with the whole stack ===
-    // create-aeronautics is the BUNDLED jar (jar-in-jar): NeoForge's loader unpacks Simulated,
-    // Aeronautics, and Offroad from inside it at runtime, so we don't need to ship Simulated
-    // separately for runClient.
+    // create-aeronautics jar-in-jars Simulated, Aeronautics, and Offroad at runtime.
     localRuntime("maven.modrinth:sable:${sable_mod_version}+mc${minecraft_version}")
     localRuntime("maven.modrinth:create:${create_mod_version}+mc${minecraft_version}")
     localRuntime("maven.modrinth:create-aeronautics:1.2.1+mc${minecraft_version}")

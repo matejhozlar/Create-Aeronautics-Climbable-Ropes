@@ -109,8 +109,6 @@ final class PlungerZiplineController {
         Vec3 dampingForce = v.scale(DAMPING);
         dampingForce = dampingForce.subtract(dir.scale(dir.dot(dampingForce)));
         Vec3 assistanceForce = dir.scale(v.dot(dir) * ASSISTANCE);
-        // Mirrors Simulated's strand zipline: spring magnitude scales with sqrt(|diff|), giving a softer
-        // pull at distance and a snappier one near the rope. Keep in sync with ZiplineClientManager.
         double diffLen = diff.lengthSqr() > 0.0 ? Mth.sqrt((float) diff.length()) : 0.0;
         Vec3 springForce = diff.scale(diffLen * SPRING);
 
