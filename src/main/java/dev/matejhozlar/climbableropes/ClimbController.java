@@ -1,7 +1,6 @@
 package dev.matejhozlar.climbableropes;
 
 import com.simibubi.create.AllTags;
-import com.simibubi.create.foundation.utility.RaycastHelper;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
@@ -25,7 +24,6 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import org.joml.Vector3d;
 
 import java.util.UUID;
 
@@ -40,8 +38,6 @@ public final class ClimbController {
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double MAX_LEASH_DIST_SQR = 9.0;
-
-    private static final Vector3d UP = new Vector3d(0.0, 1.0, 0.0);
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
@@ -117,16 +113,15 @@ public final class ClimbController {
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
         double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
         HitResult hitResult = mc.hitResult;
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
 
-        Vector3d from = JOMLConversion.toJOML(player.getEyePosition());
-        Vector3d to = JOMLConversion.toJOML(
-                RaycastHelper.getTraceTarget(player, maxRange, JOMLConversion.toMojang(from)));
-        double bestDiffSqr = hitResult == null
-                ? Double.MAX_VALUE
+        double bestDistSqr = hitResult == null
+                ? maxRange * maxRange
                 : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation())
-                        .distanceToSqr(from.x, from.y, from.z);
+                        .distanceToSqr(eye);
 
-        UUID found = ZiplineClientManager.raycastRope(mgr, from, to, bestDiffSqr, HALF_THICKNESS);
+        UUID found = raycastAnyRope(mgr, eye, look, maxRange, bestDistSqr);
         if (found == null) return null;
 
         ClientRopeStrand strand = mgr.getStrand(found);
@@ -135,7 +130,53 @@ public final class ClimbController {
         ZiplineClientManager.ClosestQuery query =
                 ZiplineClientManager.getClosestPointOnStrand(strand, player);
         double minVerticalDot = Math.cos(Math.toRadians(ClimbableRopesConfig.MAX_CLIMB_ANGLE_FROM_VERTICAL.get()));
-        return Math.abs(query.normal().dot(UP)) >= minVerticalDot ? found : null;
+        return Math.abs(query.normal().y) >= minVerticalDot ? found : null;
+    }
+
+    // Replaces ZiplineClientManager.raycastRope, which silently misses any rope segment whose
+    // tangent is antiparallel to UP — SimMathUtils.getQuaternionfFromVectorRotation produces a
+    // zero quaternion in that case and normalize() turns it into NaN, so the OBB clip fails.
+    private static UUID raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
+                                       double maxRange, double bestDistSqr) {
+        UUID best = null;
+        double thicknessSqr = HALF_THICKNESS * HALF_THICKNESS;
+        for (ClientRopeStrand strand : mgr.getAllStrands()) {
+            var points = strand.getPoints();
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec3 a = JOMLConversion.toMojang(points.get(i).position());
+                Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
+                Vec3 segDir = b.subtract(a);
+                double segLen = segDir.length();
+                if (segLen < 1e-6) continue;
+                Vec3 segUnit = segDir.scale(1.0 / segLen);
+
+                double dotLD = look.dot(segUnit);
+                double denom = 1.0 - dotLD * dotLD;
+                Vec3 r = eye.subtract(a);
+                double rSeg = r.dot(segUnit);
+                double rLook = r.dot(look);
+
+                double s, t;
+                if (denom < 1e-9) {
+                    s = 0.0;
+                    t = rSeg;
+                } else {
+                    s = (dotLD * rSeg - rLook) / denom;
+                    t = (rSeg - dotLD * rLook) / denom;
+                }
+                s = Math.max(0.0, Math.min(maxRange, s));
+                t = Math.max(0.0, Math.min(segLen, t));
+
+                Vec3 onRay = eye.add(look.scale(s));
+                Vec3 onSeg = a.add(segUnit.scale(t));
+                if (onRay.distanceToSqr(onSeg) > thicknessSqr) continue;
+                double hitDistSqr = s * s;
+                if (hitDistSqr > bestDistSqr) continue;
+                bestDistSqr = hitDistSqr;
+                best = strand.getUuid();
+            }
+        }
+        return best;
     }
 
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
