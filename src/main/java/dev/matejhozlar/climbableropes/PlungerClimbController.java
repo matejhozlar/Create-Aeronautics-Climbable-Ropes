@@ -27,7 +27,6 @@ final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double VERTICAL_BIAS = 0.5;
-    // Mirrors LaunchedPlungerEntityRenderer.scalingFactor; keep in sync.
     private static final double PLUNGER_END_OFFSET = 0.6;
 
     private static LaunchedPlungerEntity backwardPlunger;
