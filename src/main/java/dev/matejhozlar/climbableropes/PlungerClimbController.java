@@ -15,6 +15,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashSet;
@@ -22,12 +24,14 @@ import java.util.Set;
 
 final class PlungerClimbController {
     private static final double SNAP_PULL = 0.55;
-    private static final double SNAP_HORIZ_CAP = 0.35;
+    private static final double SNAP_VEL_CAP = 0.35;
     private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double PLUNGER_END_OFFSET = 0.6;
+    private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
+    private static final double MAX_LEASH_DIST_SQR = 9.0;
 
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
@@ -96,7 +100,14 @@ final class PlungerClimbController {
         double t = Math.max(0.0, Math.min(abLen, anchor.subtract(back).dot(dir)));
         Vec3 ropeWorld = back.add(dir.scale(t));
 
-        if (player.onGround() && !climbUp) {
+        if (anchor.distanceToSqr(ropeWorld) > MAX_LEASH_DIST_SQR) {
+            disembark();
+            return;
+        }
+
+        Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
+        boolean nearBottom = anchor.y < lowerEnd.y + BOTTOM_DISMOUNT_OFFSET;
+        if (player.onGround() && !climbUp && nearBottom) {
             if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
                 disembark();
                 return;
@@ -137,10 +148,11 @@ final class PlungerClimbController {
         double xVel = (target.x - anchor.x) * SNAP_PULL;
         double yVel = (target.y - anchor.y) * SNAP_PULL;
         double zVel = (target.z - anchor.z) * SNAP_PULL;
-        double horizMag = Math.hypot(xVel, zVel);
-        if (horizMag > SNAP_HORIZ_CAP) {
-            double scale = SNAP_HORIZ_CAP / horizMag;
+        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
+        if (snapMag > SNAP_VEL_CAP) {
+            double scale = SNAP_VEL_CAP / snapMag;
             xVel *= scale;
+            yVel *= scale;
             zVel *= scale;
         }
 
@@ -166,6 +178,9 @@ final class PlungerClimbController {
         } else {
             forwardIsB = player.getLookAngle().dot(dirAB) >= 0;
         }
+
+        if (!snapToEmbarkPoint(mc, player, posA, posB, dirAB, abLen)) return;
+
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();
         bottomGroundedTimer = 0;
@@ -173,6 +188,8 @@ final class PlungerClimbController {
 
         player.getAbilities().flying = false;
         player.stopFallFlying();
+        player.setDeltaMovement(Vec3.ZERO);
+        player.fallDistance = 0.0F;
 
         mc.gui.setOverlayMessage(
                 Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage()),
@@ -180,6 +197,44 @@ final class PlungerClimbController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), false));
+    }
+
+    private static boolean snapToEmbarkPoint(Minecraft mc, LocalPlayer player,
+                                             Vec3 posA, Vec3 posB, Vec3 dirAB, double abLen) {
+        Vec3 anchor = anchor(player);
+        double t = Math.max(0.0, Math.min(abLen, anchor.subtract(posA).dot(dirAB)));
+        Vec3 ropePoint = posA.add(dirAB.scale(t));
+
+        Vec3 lowerEnd = posA.y < posB.y ? posA : posB;
+        boolean atBottom = ropePoint.distanceToSqr(lowerEnd) < 1.0;
+
+        double targetY;
+        if (atBottom) {
+            ropePoint = lowerEnd;
+            targetY = lowerEnd.y;
+        } else {
+            double chainYOffset = 0.5 * player.getScale();
+            targetY = ropePoint.y - (player.getBoundingBox().getYsize() + chainYOffset);
+        }
+
+        double yawRad = Math.toRadians(player.getYRot());
+        Vec3 offsetTarget = new Vec3(
+                ropePoint.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
+                targetY,
+                ropePoint.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
+
+        AABB offsetAabb = player.getBoundingBox().move(offsetTarget.subtract(player.position()));
+        if (mc.level.noCollision(player, offsetAabb)) {
+            player.setPos(offsetTarget);
+            return true;
+        }
+        Vec3 centerTarget = new Vec3(ropePoint.x, targetY, ropePoint.z);
+        AABB centerAabb = player.getBoundingBox().move(centerTarget.subtract(player.position()));
+        if (mc.level.noCollision(player, centerAabb)) {
+            player.setPos(centerTarget);
+            return true;
+        }
+        return false;
     }
 
     private static void disembark() {
@@ -195,10 +250,15 @@ final class PlungerClimbController {
         double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
+        HitResult hitResult = mc.hitResult;
+        double blockDistSq = hitResult == null
+                ? maxRange * maxRange
+                : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation()).distanceToSqr(eye);
 
         Set<Integer> seen = new HashSet<>();
         Pair best = null;
-        double bestDistSq = HALF_THICKNESS * HALF_THICKNESS;
+        double bestDepthSq = blockDistSq;
+        double thicknessSq = HALF_THICKNESS * HALF_THICKNESS;
 
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof LaunchedPlungerEntity p)) continue;
@@ -210,18 +270,22 @@ final class PlungerClimbController {
 
             Vec3 a = ropeEndWorld(p);
             Vec3 b = ropeEndWorld(other);
-            double distSq = raySegmentDistSq(eye, look, maxRange, a, b);
-            if (distSq < 0 || distSq > bestDistSq) continue;
-            bestDistSq = distSq;
+            RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
+            if (hit == null) continue;
+            if (hit.lateralSq() > thicknessSq) continue;
+            if (hit.depthSq() > bestDepthSq) continue;
+            bestDepthSq = hit.depthSq();
             best = new Pair(p, other);
         }
         return best;
     }
 
-    private static double raySegmentDistSq(Vec3 eye, Vec3 look, double maxLen, Vec3 a, Vec3 b) {
+    private record RaySegHit(double lateralSq, double depthSq) {}
+
+    private static RaySegHit raySegmentHit(Vec3 eye, Vec3 look, double maxLen, Vec3 a, Vec3 b) {
         Vec3 segDir = b.subtract(a);
         double segLen = segDir.length();
-        if (segLen < 1e-6) return -1.0;
+        if (segLen < 1e-6) return null;
         Vec3 segUnit = segDir.scale(1.0 / segLen);
 
         double dotLD = look.dot(segUnit);
@@ -246,7 +310,7 @@ final class PlungerClimbController {
         double dx = onRay.x - onSeg.x;
         double dy = onRay.y - onSeg.y;
         double dz = onRay.z - onSeg.z;
-        return dx * dx + dy * dy + dz * dz;
+        return new RaySegHit(dx * dx + dy * dy + dz * dz, s * s);
     }
 
     static Vec3 ropeEndWorld(LaunchedPlungerEntity p) {
