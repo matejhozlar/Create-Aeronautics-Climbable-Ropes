@@ -86,6 +86,8 @@ Hold a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench), look at a plung
 
 Server-side config lives at `<world>/serverconfig/climbable_ropes-server.toml`, generated on first world load. On a dedicated server the operator owns it; in singleplayer the player owns it (per world). Values auto-sync to connected clients on join, so the server is authoritative. Clients can't tweak the file locally to climb faster.
 
+The tables below are the quick reference. For a full guide with units, in-game behavior, interactions between settings, and tuning recipes, see [CONFIGURATION.md](CONFIGURATION.md).
+
 ### `[climbing]`
 
 | Key | Default | Description |
