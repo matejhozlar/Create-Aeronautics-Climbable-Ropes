@@ -74,7 +74,7 @@ Both runs use the configuration in `run/`. The server config for climbing lives 
 
 ## Branching
 
-- Branch off `neoforge-1.21.1` (the active development branch for Minecraft 1.21.1).
+- Branch off `1.21.1` (the active development branch for Minecraft 1.21.1).
 - Branch naming: `<type>/<short-slug>`, where `<type>` matches the commit type (`feat/...`, `fix/...`, `chore/...`, `refactor/...`, `docs/...`).
 
 ## Commits
