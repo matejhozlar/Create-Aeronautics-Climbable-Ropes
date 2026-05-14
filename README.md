@@ -115,3 +115,16 @@ The tables below are the quick reference. For a full guide with units, in-game b
 | `allowBlockMantle` | `true` | When jumping off at the top end of a rope, mantle onto the block above instead of getting a normal upward impulse. |
 
 Toggling a feature off only blocks new embarkations; in-progress climbs finish normally.
+
+### `[advanced]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `snapPull` | `0.55` | How aggressively the spring drags you toward the rope each tick. |
+| `snapVelocityCap` | `0.35` | Maximum per-tick velocity the snap spring can contribute. |
+| `maxLeashDistance` | `3.0` | Distance from the rope (blocks) at which external forces dismount you. |
+| `bottomDismountOffset` | `0.6` | How close to the lower endpoint counts as "at the bottom" for the grounded auto-dismount. |
+| `bottomGroundedDismountTicks` | `5` | Ticks of ground contact at the bottom before auto-dismount. |
+| `ropeHoverRadius` | `0.25` | Raycast hitbox radius (blocks) for rope hover detection. Larger values make ropes easier to aim at. |
+
+Defaults preserve the standard behavior; these affect physics feel and targeting, so change them with care.

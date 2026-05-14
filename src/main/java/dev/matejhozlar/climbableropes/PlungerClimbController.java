@@ -23,15 +23,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 final class PlungerClimbController {
-    private static final double SNAP_PULL = 0.55;
-    private static final double SNAP_VEL_CAP = 0.35;
-    private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double PLUNGER_END_OFFSET = 0.6;
-    private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
-    private static final double MAX_LEASH_DIST_SQR = 9.0;
 
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
@@ -109,15 +103,16 @@ final class PlungerClimbController {
         double t = Math.max(0.0, Math.min(abLen, anchor.subtract(back).dot(dir)));
         Vec3 ropeWorld = back.add(dir.scale(t));
 
-        if (anchor.distanceToSqr(ropeWorld) > MAX_LEASH_DIST_SQR) {
+        double maxLeash = ClimbableRopesConfig.MAX_LEASH_DISTANCE.get();
+        if (anchor.distanceToSqr(ropeWorld) > maxLeash * maxLeash) {
             disembark();
             return;
         }
 
         Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
-        boolean nearBottom = anchor.y < lowerEnd.y + BOTTOM_DISMOUNT_OFFSET;
+        boolean nearBottom = anchor.y < lowerEnd.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get();
         if (player.onGround() && !climbUp && nearBottom) {
-            if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
+            if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
                 return;
             }
@@ -153,13 +148,15 @@ final class PlungerClimbController {
         else speedAlong = 0.0;
         Vec3 climbVel = dir.scale(speedAlong);
 
+        double snapPull = ClimbableRopesConfig.SNAP_PULL.get();
+        double snapVelCap = ClimbableRopesConfig.SNAP_VELOCITY_CAP.get();
         Vec3 target = ropeWorld.add(sideOffset(player, dir));
-        double xVel = (target.x - anchor.x) * SNAP_PULL;
-        double yVel = (target.y - anchor.y) * SNAP_PULL;
-        double zVel = (target.z - anchor.z) * SNAP_PULL;
+        double xVel = (target.x - anchor.x) * snapPull;
+        double yVel = (target.y - anchor.y) * snapPull;
+        double zVel = (target.z - anchor.z) * snapPull;
         double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > SNAP_VEL_CAP) {
-            double scale = SNAP_VEL_CAP / snapMag;
+        if (snapMag > snapVelCap) {
+            double scale = snapVelCap / snapMag;
             xVel *= scale;
             yVel *= scale;
             zVel *= scale;
@@ -270,7 +267,8 @@ final class PlungerClimbController {
         Set<Integer> seen = new HashSet<>();
         Pair best = null;
         double bestDepthSq = blockDistSq;
-        double thicknessSq = HALF_THICKNESS * HALF_THICKNESS;
+        double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
+        double radiusSq = radius * radius;
 
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof LaunchedPlungerEntity p)) continue;
@@ -284,7 +282,7 @@ final class PlungerClimbController {
             Vec3 b = ropeEndWorld(other);
             RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
             if (hit == null) continue;
-            if (hit.lateralSq() > thicknessSq) continue;
+            if (hit.lateralSq() > radiusSq) continue;
             if (hit.depthSq() > bestDepthSq) continue;
             bestDepthSq = hit.depthSq();
             best = new Pair(p, other);

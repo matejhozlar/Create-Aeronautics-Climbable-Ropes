@@ -35,9 +35,9 @@ changes, just like any other server config.
 
 ## File format
 
-The file is standard TOML with three sections: `[climbing]`, `[sliding]`, and
-`[features]`. Comments describing each key are written into the file
-automatically. A fresh default file looks like this:
+The file is standard TOML with four sections: `[climbing]`, `[sliding]`,
+`[features]`, and `[advanced]`. Comments describing each key are written into
+the file automatically. A fresh default file looks like this:
 
 ```toml
 # Climbing motion (blocks per tick).
@@ -78,6 +78,28 @@ automatically. A fresh default file looks like this:
 	allowPlungerZipline = true
 	#Allow mantling onto the block above the rope when jumping off at its top end. When disabled, jumping off at the top performs a normal upward impulse instead.
 	allowBlockMantle = true
+
+# Advanced physics and targeting tuning. These affect how climbing feels and when you are forced off a rope.
+# Defaults preserve the standard behavior; change at your own risk.
+[advanced]
+	#How aggressively the spring drags you toward the rope each tick.
+	#Range: 0.0 ~ 5.0
+	snapPull = 0.55
+	#Maximum per-tick velocity the snap spring can contribute.
+	#Range: 0.0 ~ 5.0
+	snapVelocityCap = 0.35
+	#Distance (in blocks) from the rope at which external forces dismount you.
+	#Range: 0.0 ~ 32.0
+	maxLeashDistance = 3.0
+	#How close (in blocks) to the lower endpoint counts as "at the bottom" for the grounded auto-dismount.
+	#Range: 0.0 ~ 5.0
+	bottomDismountOffset = 0.6
+	#Ticks of ground contact at the bottom of a rope before you are auto-dismounted.
+	#Range: 0 ~ 200
+	bottomGroundedDismountTicks = 5
+	#Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.
+	#Range: 0.0 ~ 2.0
+	ropeHoverRadius = 0.25
 ```
 
 Values out of range are clamped or rejected by NeoForge's `ModConfigSpec`
@@ -307,6 +329,97 @@ rope:
   setup involves climbing ropes near low ceilings you don't want to mantle
   onto.
 
+## `[advanced]`
+
+These keys expose the physics and targeting constants that were previously
+hardcoded. Every default is the value the mod always used, so a fresh config
+behaves identically to older versions. Both climb modes (hanging-rope and
+plunger-rope) read these same values, so a change affects both.
+
+### `snapPull`
+
+- **Type:** double
+- **Default:** `0.55`
+- **Range:** `0.0` to `5.0`
+
+Strength of the spring that pulls the player onto the rope each tick. The
+mod computes the offset from the player's anchor to the target point on the
+rope and multiplies it by `snapPull` to get a velocity contribution.
+
+Higher values glue the player to the rope more rigidly; lower values let the
+player drift further before being reeled in. `0` disables the snap entirely,
+which makes climbing essentially unusable (nothing holds you to the rope).
+
+### `snapVelocityCap`
+
+- **Type:** double (blocks per tick)
+- **Default:** `0.35`
+- **Range:** `0.0` to `5.0`
+
+Upper bound on the per-tick velocity `snapPull` can contribute. The cap is
+applied to the full 3D magnitude of the snap velocity, so a player far from
+the rope is reeled in at a steady `snapVelocityCap` rather than being yanked.
+
+Raising this alongside `slideSpeed` helps the snap keep up at high slide
+speeds; lowering it makes the snap gentler but allows more drift.
+
+### `maxLeashDistance`
+
+- **Type:** double (blocks)
+- **Default:** `3.0`
+- **Range:** `0.0` to `32.0`
+
+How far the player's anchor may get from the rope before the climb is
+cancelled and they are dismounted. This is the most common cause of
+"I keep getting kicked off the rope": external forces (an explosion, a moving
+airship, knockback) push the player past this distance and the leash trips.
+
+The value is the plain distance in blocks; the mod squares it internally.
+Raising it makes the climb more forgiving on chaotic airships; lowering it
+makes the player drop off more eagerly.
+
+### `bottomDismountOffset`
+
+- **Type:** double (blocks)
+- **Default:** `0.6`
+- **Range:** `0.0` to `5.0`
+
+How close to the rope's lower endpoint the player must be for the grounded
+auto-dismount to consider them "at the bottom". Combined with
+`bottomGroundedDismountTicks`: when the player is standing on the ground,
+not climbing up, and within this distance of the bottom end, the dismount
+timer starts.
+
+Larger values make the player step off the rope sooner when they reach the
+bottom; `0` effectively requires them to be exactly at the endpoint.
+
+### `bottomGroundedDismountTicks`
+
+- **Type:** integer (ticks)
+- **Default:** `5` (0.25 seconds)
+- **Range:** `0` to `200`
+
+Number of consecutive ticks the player must be grounded near the bottom of
+a rope (see `bottomDismountOffset`) before being auto-dismounted. This is the
+grace period that stops you from instantly falling off the moment your feet
+brush the floor mid-climb.
+
+Raising it lets the player linger on the rope while standing at the bottom;
+`0` dismounts on the first grounded tick.
+
+### `ropeHoverRadius`
+
+- **Type:** double (blocks)
+- **Default:** `0.25` (`4/16`, the rope's visual radius)
+- **Range:** `0.0` to `2.0`
+
+Radius of the cylinder used by the hover raycast that decides which rope your
+crosshair is pointing at. This is a **targeting** knob, not a physics one: it
+changes how easy ropes are to aim at, not how climbing feels once attached.
+
+Larger values make ropes much easier to click, at the cost of precision in
+dense rope scenes; `0` requires a pixel-perfect hit on the rope's centerline.
+
 ## Tuning recipes
 
 ### "Climbing should feel like a ladder"
@@ -354,6 +467,27 @@ descend):
 
 Note that sliding still scales with verticality, so this is a comfort tweak
 for traversal rather than a speed tweak.
+
+### "Players keep getting kicked off ropes"
+
+The usual culprit is the leash tripping when an airship or knockback shoves
+the player. Loosen the leash and stiffen the snap so the player is held more
+firmly:
+
+```toml
+[advanced]
+	maxLeashDistance = 6.0
+	snapPull = 0.7
+	snapVelocityCap = 0.5
+```
+
+If players also report falling off the moment they reach the bottom, raise
+the grounded grace period:
+
+```toml
+[advanced]
+	bottomGroundedDismountTicks = 15
+```
 
 ### "Disable empty-hand climbing entirely (zipline-only server)"
 
