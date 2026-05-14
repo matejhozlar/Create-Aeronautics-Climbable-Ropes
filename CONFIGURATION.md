@@ -99,7 +99,7 @@ the file automatically. A fresh default file looks like this:
 	bottomGroundedDismountTicks = 5
 	#Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.
 	#Range: 0.0 ~ 2.0
-	ropeHoverThickness = 0.25
+	ropeHoverRadius = 0.25
 ```
 
 Values out of range are clamped or rejected by NeoForge's `ModConfigSpec`
@@ -407,7 +407,7 @@ brush the floor mid-climb.
 Raising it lets the player linger on the rope while standing at the bottom;
 `0` dismounts on the first grounded tick.
 
-### `ropeHoverThickness`
+### `ropeHoverRadius`
 
 - **Type:** double (blocks)
 - **Default:** `0.25` (`4/16`, the rope's visual radius)

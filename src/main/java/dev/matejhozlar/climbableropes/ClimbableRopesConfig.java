@@ -24,7 +24,7 @@ public final class ClimbableRopesConfig {
     public static final ModConfigSpec.DoubleValue MAX_LEASH_DISTANCE;
     public static final ModConfigSpec.DoubleValue BOTTOM_DISMOUNT_OFFSET;
     public static final ModConfigSpec.IntValue BOTTOM_GROUNDED_DISMOUNT_TICKS;
-    public static final ModConfigSpec.DoubleValue ROPE_HOVER_THICKNESS;
+    public static final ModConfigSpec.DoubleValue ROPE_HOVER_RADIUS;
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -91,9 +91,9 @@ public final class ClimbableRopesConfig {
         BOTTOM_GROUNDED_DISMOUNT_TICKS = b
                 .comment("Ticks of ground contact at the bottom of a rope before you are auto-dismounted.")
                 .defineInRange("bottomGroundedDismountTicks", 5, 0, 200);
-        ROPE_HOVER_THICKNESS = b
+        ROPE_HOVER_RADIUS = b
                 .comment("Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.")
-                .defineInRange("ropeHoverThickness", 4.0 / 16.0, 0.0, 2.0);
+                .defineInRange("ropeHoverRadius", 4.0 / 16.0, 0.0, 2.0);
         b.pop();
 
         SPEC = b.build();

@@ -267,8 +267,8 @@ final class PlungerClimbController {
         Set<Integer> seen = new HashSet<>();
         Pair best = null;
         double bestDepthSq = blockDistSq;
-        double halfThickness = ClimbableRopesConfig.ROPE_HOVER_THICKNESS.get();
-        double thicknessSq = halfThickness * halfThickness;
+        double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
+        double radiusSq = radius * radius;
 
         for (Entity e : mc.level.entitiesForRendering()) {
             if (!(e instanceof LaunchedPlungerEntity p)) continue;
@@ -282,7 +282,7 @@ final class PlungerClimbController {
             Vec3 b = ropeEndWorld(other);
             RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
             if (hit == null) continue;
-            if (hit.lateralSq() > thicknessSq) continue;
+            if (hit.lateralSq() > radiusSq) continue;
             if (hit.depthSq() > bestDepthSq) continue;
             bestDepthSq = hit.depthSq();
             best = new Pair(p, other);

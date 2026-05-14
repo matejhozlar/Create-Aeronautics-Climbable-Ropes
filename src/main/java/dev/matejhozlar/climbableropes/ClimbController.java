@@ -130,8 +130,8 @@ public final class ClimbController {
     private static UUID raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
                                        double maxRange, double bestDistSqr) {
         UUID best = null;
-        double halfThickness = ClimbableRopesConfig.ROPE_HOVER_THICKNESS.get();
-        double thicknessSqr = halfThickness * halfThickness;
+        double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
+        double radiusSqr = radius * radius;
         for (ClientRopeStrand strand : mgr.getAllStrands()) {
             var points = strand.getPoints();
             for (int i = 0; i < points.size() - 1; i++) {
@@ -161,7 +161,7 @@ public final class ClimbController {
 
                 Vec3 onRay = eye.add(look.scale(s));
                 Vec3 onSeg = a.add(segUnit.scale(t));
-                if (onRay.distanceToSqr(onSeg) > thicknessSqr) continue;
+                if (onRay.distanceToSqr(onSeg) > radiusSqr) continue;
                 double hitDistSqr = s * s;
                 if (hitDistSqr > bestDistSqr) continue;
                 bestDistSqr = hitDistSqr;
