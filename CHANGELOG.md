@@ -1,5 +1,4 @@
-## Version 1.7.0
+## Version 1.8.0
 
 ### Added
-- Added the ability to switch ropes mid-climb by right-clicking another rope while already on one.
-- Added an `[advanced]` config section exposing physics and targeting tuning constants: `snapPull`, `snapVelocityCap`, `maxLeashDistance`, `bottomDismountOffset`, `bottomGroundedDismountTicks`, and `ropeHoverRadius`. Defaults match the previous hardcoded values, so behavior is unchanged out of the box.
+- Added a keybind (default: Left Alt) that locks the camera yaw while climbing a rope, allowing free look without the player's body orbiting around the rope. Releasing the key smoothly re-orbits the body back to face the camera direction.
