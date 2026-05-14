@@ -44,6 +44,15 @@ final class PlungerClimbController {
         return forwardPlunger != null;
     }
 
+    private static boolean isRidingPair(Pair pair) {
+        if (forwardPlunger == null) return false;
+        int a = pair.a().getId();
+        int b = pair.b().getId();
+        int f = forwardPlunger.getId();
+        int k = backwardPlunger.getId();
+        return (a == f && b == k) || (a == k && b == f);
+    }
+
     static void reset() {
         backwardPlunger = null;
         forwardPlunger = null;
@@ -165,6 +174,7 @@ final class PlungerClimbController {
     }
 
     private static void embark(Pair pair, Minecraft mc, LocalPlayer player) {
+        if (isRidingPair(pair)) return;
         Vec3 posA = ropeEndWorld(pair.a());
         Vec3 posB = ropeEndWorld(pair.b());
         Vec3 ab = posB.subtract(posA);
@@ -180,6 +190,8 @@ final class PlungerClimbController {
         }
 
         if (!snapToEmbarkPoint(mc, player, posA, posB, dirAB, abLen)) return;
+
+        ClimbController.leaveActiveRides();
 
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();
@@ -237,7 +249,7 @@ final class PlungerClimbController {
         return false;
     }
 
-    private static void disembark() {
+    static void disembark() {
         if (forwardPlunger == null) return;
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), true));
         reset();

@@ -33,6 +33,15 @@ final class PlungerZiplineController {
         return plungerA != null;
     }
 
+    private static boolean isRidingPair(PlungerClimbController.Pair pair) {
+        if (plungerA == null) return false;
+        int a = pair.a().getId();
+        int b = pair.b().getId();
+        int x = plungerA.getId();
+        int y = plungerB.getId();
+        return (a == x && b == y) || (a == y && b == x);
+    }
+
     static void reset() {
         plungerA = null;
         plungerB = null;
@@ -121,6 +130,8 @@ final class PlungerZiplineController {
     }
 
     private static void embark(PlungerClimbController.Pair pair, Minecraft mc, LocalPlayer player) {
+        if (isRidingPair(pair)) return;
+        ClimbController.leaveActiveRides();
         plungerA = pair.a();
         plungerB = pair.b();
         groundedTimer = 0;
@@ -136,7 +147,7 @@ final class PlungerZiplineController {
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), false));
     }
 
-    private static void disembark() {
+    static void disembark() {
         if (plungerA == null) return;
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), true));
         reset();
