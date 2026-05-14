@@ -67,23 +67,24 @@ public final class ClimbController {
         boolean justPressed = useDown && !prevUseDown;
         prevUseDown = useDown;
 
-        if (climbingRope != null) {
-            tickClimb(mc, player);
-            return;
-        }
-
-        if (PlungerClimbController.isClimbing()) {
-            PlungerClimbController.tickClimb(mc, player);
-            return;
-        }
-
-        if (PlungerZiplineController.isRiding()) {
-            PlungerZiplineController.ridingTick(mc, player);
+        if (climbingRope != null || PlungerClimbController.isClimbing() || PlungerZiplineController.isRiding()) {
+            if (justPressed) tryHoverEmbark(mc, player, true);
+            tickActiveRide(mc, player);
             return;
         }
 
         if (ZiplineClientManager.ridingRope != null) return;
 
+        tryHoverEmbark(mc, player, justPressed);
+    }
+
+    private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
+        if (climbingRope != null) tickClimb(mc, player);
+        else if (PlungerClimbController.isClimbing()) PlungerClimbController.tickClimb(mc, player);
+        else if (PlungerZiplineController.isRiding()) PlungerZiplineController.ridingTick(mc, player);
+    }
+
+    private static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
         if (AllTags.AllItemTags.CHAIN_RIDEABLE.matches(player.getMainHandItem())) {
             if (!player.isShiftKeyDown() && ClimbableRopesConfig.ALLOW_PLUNGER_ZIPLINE.get()) {
                 PlungerZiplineController.tryHoverEmbark(mc, player, justPressed);
@@ -176,6 +177,8 @@ public final class ClimbController {
     }
 
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
+        if (rope.equals(climbingRope)) return;
+        leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
         slideVelocity = 0.0;
@@ -239,9 +242,8 @@ public final class ClimbController {
     }
 
     private static void disembark() {
-        if (climbingRope != null) {
-            VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, true));
-        }
+        if (climbingRope == null) return;
+        VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, true));
         climbingRope = null;
         forwardIsLast = true;
         bottomGroundedTimer = 0;
@@ -249,6 +251,12 @@ public final class ClimbController {
 
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+    }
+
+    static void leaveActiveRides() {
+        disembark();
+        PlungerClimbController.disembark();
+        PlungerZiplineController.disembark();
     }
 
     private static boolean computeForwardIsLast(Minecraft mc, LocalPlayer player, UUID rope) {
