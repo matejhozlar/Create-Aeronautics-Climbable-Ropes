@@ -19,6 +19,13 @@ public final class ClimbableRopesConfig {
     public static final ModConfigSpec.BooleanValue ALLOW_PLUNGER_ZIPLINE;
     public static final ModConfigSpec.BooleanValue ALLOW_BLOCK_MANTLE;
 
+    public static final ModConfigSpec.DoubleValue SNAP_PULL;
+    public static final ModConfigSpec.DoubleValue SNAP_VELOCITY_CAP;
+    public static final ModConfigSpec.DoubleValue MAX_LEASH_DISTANCE;
+    public static final ModConfigSpec.DoubleValue BOTTOM_DISMOUNT_OFFSET;
+    public static final ModConfigSpec.IntValue BOTTOM_GROUNDED_DISMOUNT_TICKS;
+    public static final ModConfigSpec.DoubleValue ROPE_HOVER_THICKNESS;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -64,6 +71,29 @@ public final class ClimbableRopesConfig {
         ALLOW_BLOCK_MANTLE = b
                 .comment("Allow mantling onto the block above the rope when jumping off at its top end. When disabled, jumping off at the top performs a normal upward impulse instead.")
                 .define("allowBlockMantle", true);
+        b.pop();
+
+        b.comment(
+                "Advanced physics and targeting tuning. These affect how climbing feels and when you are forced off a rope.",
+                "Defaults preserve the standard behavior; change at your own risk.").push("advanced");
+        SNAP_PULL = b
+                .comment("How aggressively the spring drags you toward the rope each tick.")
+                .defineInRange("snapPull", 0.55, 0.0, 5.0);
+        SNAP_VELOCITY_CAP = b
+                .comment("Maximum per-tick velocity the snap spring can contribute.")
+                .defineInRange("snapVelocityCap", 0.35, 0.0, 5.0);
+        MAX_LEASH_DISTANCE = b
+                .comment("Distance (in blocks) from the rope at which external forces dismount you.")
+                .defineInRange("maxLeashDistance", 3.0, 0.0, 32.0);
+        BOTTOM_DISMOUNT_OFFSET = b
+                .comment("How close (in blocks) to the lower endpoint counts as \"at the bottom\" for the grounded auto-dismount.")
+                .defineInRange("bottomDismountOffset", 0.6, 0.0, 5.0);
+        BOTTOM_GROUNDED_DISMOUNT_TICKS = b
+                .comment("Ticks of ground contact at the bottom of a rope before you are auto-dismounted.")
+                .defineInRange("bottomGroundedDismountTicks", 5, 0, 200);
+        ROPE_HOVER_THICKNESS = b
+                .comment("Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.")
+                .defineInRange("ropeHoverThickness", 4.0 / 16.0, 0.0, 2.0);
         b.pop();
 
         SPEC = b.build();

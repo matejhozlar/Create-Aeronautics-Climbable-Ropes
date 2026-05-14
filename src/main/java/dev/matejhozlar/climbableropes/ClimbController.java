@@ -29,15 +29,9 @@ import java.util.UUID;
 
 @EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
 public final class ClimbController {
-    private static final double SNAP_PULL = 0.55;
-    private static final double SNAP_VEL_CAP = 0.35;
-    private static final double BOTTOM_DISMOUNT_OFFSET = 0.6;
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    private static final int BOTTOM_GROUNDED_DISMOUNT_TICKS = 5;
-    private static final double HALF_THICKNESS = 4.0 / 16.0;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     private static final double VERTICAL_BIAS = 0.5;
-    private static final double MAX_LEASH_DIST_SQR = 9.0;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
@@ -136,7 +130,8 @@ public final class ClimbController {
     private static UUID raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
                                        double maxRange, double bestDistSqr) {
         UUID best = null;
-        double thicknessSqr = HALF_THICKNESS * HALF_THICKNESS;
+        double halfThickness = ClimbableRopesConfig.ROPE_HOVER_THICKNESS.get();
+        double thicknessSqr = halfThickness * halfThickness;
         for (ClientRopeStrand strand : mgr.getAllStrands()) {
             var points = strand.getPoints();
             for (int i = 0; i < points.size() - 1; i++) {
@@ -300,7 +295,8 @@ public final class ClimbController {
 
         Vec3 anchor = anchor(player);
         StrandQuery sq = findClosestSegment(strand, anchor);
-        if (sq.distSqr > MAX_LEASH_DIST_SQR) {
+        double maxLeash = ClimbableRopesConfig.MAX_LEASH_DISTANCE.get();
+        if (sq.distSqr > maxLeash * maxLeash) {
             disembark();
             return;
         }
@@ -330,8 +326,9 @@ public final class ClimbController {
             return;
         }
 
-        if (player.onGround() && !climbUp && anchor.y < bottomPoint.y + BOTTOM_DISMOUNT_OFFSET) {
-            if (++bottomGroundedTimer > BOTTOM_GROUNDED_DISMOUNT_TICKS) {
+        if (player.onGround() && !climbUp
+                && anchor.y < bottomPoint.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
+            if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
                 return;
             }
@@ -376,12 +373,14 @@ public final class ClimbController {
         double dx = target.x - anchor.x;
         double dy = target.y - anchor.y;
         double dz = target.z - anchor.z;
-        double xVel = dx * SNAP_PULL;
-        double yVel = dy * SNAP_PULL;
-        double zVel = dz * SNAP_PULL;
+        double snapPull = ClimbableRopesConfig.SNAP_PULL.get();
+        double snapVelCap = ClimbableRopesConfig.SNAP_VELOCITY_CAP.get();
+        double xVel = dx * snapPull;
+        double yVel = dy * snapPull;
+        double zVel = dz * snapPull;
         double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > SNAP_VEL_CAP) {
-            double scale = SNAP_VEL_CAP / snapMag;
+        if (snapMag > snapVelCap) {
+            double scale = snapVelCap / snapMag;
             xVel *= scale;
             yVel *= scale;
             zVel *= scale;
