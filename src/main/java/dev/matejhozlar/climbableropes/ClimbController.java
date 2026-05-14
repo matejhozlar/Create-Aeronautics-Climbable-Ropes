@@ -57,6 +57,8 @@ public final class ClimbController {
         }
         if (mc.isPaused()) return;
 
+        ClimbableRopesKeybinds.update(player);
+
         boolean useDown = mc.options.keyUse.isDown();
         boolean justPressed = useDown && !prevUseDown;
         prevUseDown = useDown;
@@ -369,7 +371,7 @@ public final class ClimbController {
 
         Vec3 climbVel = forwardAlongStrand.scale(speedAlong);
 
-        Vec3 target = ropeWorld.add(sideOffset(player, forwardAlongStrand));
+        Vec3 target = ropeWorld.add(sideOffset(ClimbableRopesKeybinds.climbYaw(), forwardAlongStrand));
         double dx = target.x - anchor.x;
         double dy = target.y - anchor.y;
         double dz = target.z - anchor.z;
@@ -399,8 +401,8 @@ public final class ClimbController {
         return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
     }
 
-    private static Vec3 sideOffset(LocalPlayer player, Vec3 ropeDir) {
-        double yawRad = Math.toRadians(player.getYRot());
+    private static Vec3 sideOffset(double yaw, Vec3 ropeDir) {
+        double yawRad = Math.toRadians(yaw);
         Vec3 forward = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
         Vec3 perp = forward.subtract(ropeDir.scale(forward.dot(ropeDir)));
         double len = perp.length();
