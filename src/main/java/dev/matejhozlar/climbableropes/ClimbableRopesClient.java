@@ -7,5 +7,6 @@ import net.neoforged.fml.common.Mod;
 @Mod(value = ClimbableRopes.MODID, dist = Dist.CLIENT)
 public class ClimbableRopesClient {
     public ClimbableRopesClient(IEventBus modEventBus) {
+        modEventBus.addListener(ClimbableRopesKeybinds::register);
     }
 }
