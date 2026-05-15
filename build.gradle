@@ -75,6 +75,7 @@ neoForge {
         }
         server {
             server()
+            gameDirectory = file('run/server')
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
@@ -154,6 +155,12 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+tasks.withType(JavaExec).configureEach {
+    if (name.startsWith('run')) {
+        standardInput = System.in
+    }
 }
 
 idea {

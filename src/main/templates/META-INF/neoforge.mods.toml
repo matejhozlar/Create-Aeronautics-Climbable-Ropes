@@ -7,8 +7,8 @@ modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
 authors="saunhardy"
-displayURL="https://gitea.matejhoz.com/matejhozlar/create-aeronautics-climbable-ropes"
-issueTrackerURL="https://gitea.matejhoz.com/matejhozlar/create-aeronautics-climbable-ropes/issues"
+displayURL="https://github.com/matejhozlar/Create-Aeronautics-Climbable-Ropes"
+issueTrackerURL="https://github.com/matejhozlar/Create-Aeronautics-Climbable-Ropes/issues"
 description='''
 Addon for Create: Aeronautics (Simulated module). Adds empty-hand climb modes for hanging rope strands and plunger ropes, plus a wrench-zipline mode for plunger ropes. The original Simulated zipline on hanging ropes is left untouched. The mod runs on both client and dedicated server: the server owns climbing config (auto-synced to clients) and tracks rope-riding state; per-tick climb input is handled client-side.
 '''
