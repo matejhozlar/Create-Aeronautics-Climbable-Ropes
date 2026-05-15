@@ -1,4 +1,4 @@
-## Version 1.8.0
+## Version 1.8.1
 
-### Added
-- Added a keybind (default: Left Alt) that locks the camera yaw while climbing a rope, allowing free look without the player's body orbiting around the rope. Releasing the key smoothly re-orbits the body back to face the camera direction.
+### Changed
+- Changed the default `maxClimbAngleFromVertical` from `31.79°` to `90°`, so ropes can be grabbed and climbed at any angle (including horizontal) out of the box. Players who prefer near-vertical-only climbing can lower the value in the config.
