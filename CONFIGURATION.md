@@ -54,7 +54,7 @@ the file automatically. A fresh default file looks like this:
 	#Maximum angle from vertical (in degrees) at which a hanging rope segment can be grabbed for climbing.
 	#0 = only perfectly vertical ropes; 90 = any angle including horizontal. Increase to climb diagonal lines.
 	#Range: 0.0 ~ 90.0
-	maxClimbAngleFromVertical = 31.79
+	maxClimbAngleFromVertical = 90.0
 
 # Sprint-while-descending slide mechanics.
 [sliding]
@@ -177,7 +177,7 @@ impulse, useful for low-gravity airships where you don't want a launch.
 ### `maxClimbAngleFromVertical`
 
 - **Type:** double (degrees)
-- **Default:** `31.79`
+- **Default:** `90.0`
 - **Range:** `0.0` to `90.0`
 - **Applies to:** hanging rope strands only. Plunger ropes ignore this gate
   and are climbable at any angle.
@@ -188,18 +188,20 @@ between the closest rope segment and world up. If that angle is at or below
 `maxClimbAngleFromVertical`, the rope is grabbable; otherwise the click is
 ignored and you do not embark.
 
-The default of `31.79°` corresponds to the historical "dot product >= 0.85"
-threshold (`acos(0.85) ≈ 31.79°`), kept for behavior continuity.
+The default of `90°` allows every angle, including fully horizontal ropes.
+Lower the value if you want to forbid climbing slack or near-horizontal
+segments. A historically meaningful value is `31.79°`, which matches the old
+"dot product >= 0.85" threshold (`acos(0.85) ≈ 31.79°`).
 
 Useful values:
 
 | Value | Effect |
 | --- | --- |
 | `0` | Only perfectly plumb ropes can be climbed. A rope swinging in the wind becomes briefly ungrabbable. |
-| `~30` (default) | Lets you grab ropes that are mostly vertical, including ropes attached to a moving airship that are angled by drag. |
+| `~30` | Lets you grab ropes that are mostly vertical, including ropes attached to a moving airship that are angled by drag. Matches the legacy 0.85 dot-product threshold. |
 | `45` | Climb anything closer to vertical than to horizontal. |
 | `60`-`75` | Useful for shallow rigging, but slide mechanics become noticeably less effective on rope segments near this angle. |
-| `90` | Any orientation, including a perfectly horizontal rope. |
+| `90` (default) | Any orientation, including a perfectly horizontal rope. |
 
 Even at `90`, sliding still scales with verticality (see `[sliding]`), so a
 horizontal rope is rideable but won't accelerate beyond `descendSpeed`.
