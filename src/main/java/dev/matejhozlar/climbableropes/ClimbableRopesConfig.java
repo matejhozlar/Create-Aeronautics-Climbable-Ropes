@@ -43,7 +43,7 @@ public final class ClimbableRopesConfig {
                 .comment(
                         "Maximum angle from vertical (in degrees) at which a hanging rope segment can be grabbed for climbing.",
                         "0 = only perfectly vertical ropes; 90 = any angle including horizontal. Increase to climb diagonal lines.")
-                .defineInRange("maxClimbAngleFromVertical", 31.79, 0.0, 90.0);
+                .defineInRange("maxClimbAngleFromVertical", 90.0, 0.0, 90.0);
         b.pop();
 
         b.comment("Sprint-while-descending slide mechanics.").push("sliding");

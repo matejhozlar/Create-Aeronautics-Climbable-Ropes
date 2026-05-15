@@ -95,7 +95,7 @@ The tables below are the quick reference. For a full guide with units, in-game b
 | `climbSpeed` | `0.18` | Speed along the rope when holding forward (blocks/tick). |
 | `descendSpeed` | `0.22` | Speed along the rope when holding back (blocks/tick). |
 | `jumpOffVelocity` | `0.42` | Upward impulse applied when jumping off. |
-| `maxClimbAngleFromVertical` | `31.79` | Maximum angle from vertical (degrees) at which a hanging-rope segment can be grabbed. The default matches the legacy 0.85 dot-product threshold. Raise toward 90 to enable diagonal/horizontal climbs. |
+| `maxClimbAngleFromVertical` | `90.0` | Maximum angle from vertical (degrees) at which a hanging-rope segment can be grabbed. The default allows any angle, including horizontal. Lower toward `0` to require near-vertical ropes (e.g. `31.79` matches the legacy 0.85 dot-product threshold). |
 
 ### `[sliding]`
 
