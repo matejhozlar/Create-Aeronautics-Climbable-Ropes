@@ -1,4 +1,7 @@
-## Version 1.8.1
+## Version 1.9.0
+
+### Added
+- Added an in-game configuration screen, accessible via the Config button on the Mods list. All mod settings are labeled in English with descriptive tooltips.
 
 ### Changed
-- Changed the default `maxClimbAngleFromVertical` from `31.79°` to `90°`, so ropes can be grabbed and climbed at any angle (including horizontal) out of the box. Players who prefer near-vertical-only climbing can lower the value in the config.
+- Corrected the website and issue tracker links shown in the Mods screen.
