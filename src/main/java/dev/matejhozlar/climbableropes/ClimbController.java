@@ -41,6 +41,12 @@ public final class ClimbController {
 
     private ClimbController() {}
 
+    public static boolean isLocalOnRope() {
+        return climbingRope != null
+                || PlungerClimbController.isClimbing()
+                || PlungerZiplineController.isRiding();
+    }
+
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
