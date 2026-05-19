@@ -128,3 +128,12 @@ Toggling a feature off only blocks new embarkations; in-progress climbs finish n
 | `ropeHoverRadius` | `0.25` | Raycast hitbox radius (blocks) for rope hover detection. Larger values make ropes easier to aim at. |
 
 Defaults preserve the standard behavior; these affect physics feel and targeting, so change them with care.
+
+### `[animation]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `enableClimbAnimation` | `true` | Play the rope-climb body/arm/leg animations on your local player while attached to a rope. Requires the KosmX Player Animator mod. |
+| `animationSpeedMultiplier` | `1.0` | Playback-speed multiplier for the climb animations. `1.0` is the authored speed. |
+
+Animations are driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator), which is listed as a required dependency in `neoforge.mods.toml`. Climbable Ropes does not jar-in-jar the library, so end users need to install Player Animator alongside this mod (CurseForge / Modrinth / GitHub). With the library missing the mod will refuse to load on the client; on a dedicated server the dependency is client-only.

@@ -165,6 +165,13 @@ final class PlungerClimbController {
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
 
+        ClimbAnimationController.ClimbState animState;
+        if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
+        else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
+        else if (climbDown || slideVelocity > 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else animState = ClimbAnimationController.ClimbState.IDLE;
+        ClimbAnimationController.onTick(dir, animState);
+
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), false));
         }
@@ -206,6 +213,7 @@ final class PlungerClimbController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), false));
+        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.PLUNGER_ROPE);
     }
 
     private static boolean snapToEmbarkPoint(Minecraft mc, LocalPlayer player,
@@ -252,6 +260,7 @@ final class PlungerClimbController {
         reset();
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+        ClimbAnimationController.onDisembark();
     }
 
     static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {

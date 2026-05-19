@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "name": "climb_up",
+  "author": "saunhardy",
+  "description": "Alternating arm-reach climb-up loop for hanging rope strands and plunger ropes.",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 20,
+    "stopTick": 20,
+    "isLoop": true,
+    "returnTick": 0,
+    "degrees": true,
+    "easeBeforeKeyframe": false,
+    "moves": [
+      { "tick": 0,  "easing": "easeInOutSine", "rightArm": { "pitch": -130, "yaw":  10, "roll":  10 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftArm":  { "pitch":  -40, "yaw": -10, "roll": -10 } },
+      { "tick": 0,  "easing": "easeInOutSine", "rightLeg": { "pitch":   20, "yaw":   0, "roll":   0 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftLeg":  { "pitch":  -25, "yaw":   0, "roll":   0 } },
+      { "tick": 0,  "easing": "easeInOutSine", "body":     { "pitch":    5, "yaw":   2, "roll":   0 } },
+      { "tick": 0,  "easing": "easeInOutSine", "head":     { "pitch":  -10, "yaw":   3, "roll":   0 } },
+
+      { "tick": 10, "easing": "easeInOutSine", "rightArm": { "pitch":  -40, "yaw":  10, "roll":  10 } },
+      { "tick": 10, "easing": "easeInOutSine", "leftArm":  { "pitch": -130, "yaw": -10, "roll": -10 } },
+      { "tick": 10, "easing": "easeInOutSine", "rightLeg": { "pitch":  -25, "yaw":   0, "roll":   0 } },
+      { "tick": 10, "easing": "easeInOutSine", "leftLeg":  { "pitch":   20, "yaw":   0, "roll":   0 } },
+      { "tick": 10, "easing": "easeInOutSine", "body":     { "pitch":    5, "yaw":  -2, "roll":   0 } },
+      { "tick": 10, "easing": "easeInOutSine", "head":     { "pitch":  -10, "yaw":  -3, "roll":   0 } },
+
+      { "tick": 20, "easing": "easeInOutSine", "rightArm": { "pitch": -130, "yaw":  10, "roll":  10 } },
+      { "tick": 20, "easing": "easeInOutSine", "leftArm":  { "pitch":  -40, "yaw": -10, "roll": -10 } },
+      { "tick": 20, "easing": "easeInOutSine", "rightLeg": { "pitch":   20, "yaw":   0, "roll":   0 } },
+      { "tick": 20, "easing": "easeInOutSine", "leftLeg":  { "pitch":  -25, "yaw":   0, "roll":   0 } },
+      { "tick": 20, "easing": "easeInOutSine", "body":     { "pitch":    5, "yaw":   2, "roll":   0 } },
+      { "tick": 20, "easing": "easeInOutSine", "head":     { "pitch":  -10, "yaw":   3, "roll":   0 } }
+    ]
+  }
+}

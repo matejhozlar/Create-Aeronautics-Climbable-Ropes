@@ -145,6 +145,7 @@ final class PlungerZiplineController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), false));
+        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.PLUNGER_ZIPLINE);
     }
 
     static void disembark() {
@@ -153,6 +154,7 @@ final class PlungerZiplineController {
         reset();
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+        ClimbAnimationController.onDisembark();
     }
 
     private static Vec3 anchor(LocalPlayer player) {

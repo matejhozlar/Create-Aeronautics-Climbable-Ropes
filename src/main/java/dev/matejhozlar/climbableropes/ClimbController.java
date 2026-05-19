@@ -194,6 +194,7 @@ public final class ClimbController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
+        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.HANGING_STRAND);
     }
 
     private static void snapToEmbarkPoint(Minecraft mc, LocalPlayer player, UUID rope) {
@@ -248,6 +249,7 @@ public final class ClimbController {
 
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+        ClimbAnimationController.onDisembark();
     }
 
     static void leaveActiveRides() {
@@ -390,6 +392,13 @@ public final class ClimbController {
 
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
+
+        ClimbAnimationController.ClimbState animState;
+        if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
+        else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
+        else if (climbDown || slideVelocity > 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else animState = ClimbAnimationController.ClimbState.IDLE;
+        ClimbAnimationController.onTick(forwardAlongStrand, animState);
 
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, false));

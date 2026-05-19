@@ -1,3 +1,10 @@
+## Version 1.10.0
+
+### Added
+- Player climb animations driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator). Empty-hand climbing now plays a body/arm/leg pose layer on the local player: an alternating arm-reach `climb_up` loop while holding forward, a lower-amplitude `descend` loop while holding back or coasting from a slide, and a passive hang on plunger ziplines. The body bone tilts to the pitch of the rope segment so diagonal ropes visibly lean the player.
+- New `[animation]` config section with `enableClimbAnimation` (default `true`) and `animationSpeedMultiplier` (default `1.0`, range `0.1`-`5.0`).
+- Player Animator is declared as a required client-side dependency in `neoforge.mods.toml`; install it alongside Climbable Ropes.
+
 ## Version 1.9.0
 
 ### Added

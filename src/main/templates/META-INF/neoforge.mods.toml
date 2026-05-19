@@ -50,3 +50,11 @@ Addon for Create: Aeronautics (Simulated module). Adds empty-hand climb modes fo
     ordering="AFTER"
     side="BOTH"
     reason="CHAIN_RIDEABLE tag and rope holder behaviour come from Create."
+
+[[dependencies.${mod_id}]]
+    modId="playeranimator"
+    type="required"
+    versionRange="[${player_anim_mod_version},)"
+    ordering="AFTER"
+    side="CLIENT"
+    reason="Drives the climb animation playback layer."

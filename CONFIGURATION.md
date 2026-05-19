@@ -35,9 +35,9 @@ changes, just like any other server config.
 
 ## File format
 
-The file is standard TOML with four sections: `[climbing]`, `[sliding]`,
-`[features]`, and `[advanced]`. Comments describing each key are written into
-the file automatically. A fresh default file looks like this:
+The file is standard TOML with five sections: `[climbing]`, `[sliding]`,
+`[features]`, `[advanced]`, and `[animation]`. Comments describing each key are
+written into the file automatically. A fresh default file looks like this:
 
 ```toml
 # Climbing motion (blocks per tick).
@@ -100,6 +100,14 @@ the file automatically. A fresh default file looks like this:
 	#Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.
 	#Range: 0.0 ~ 2.0
 	ropeHoverRadius = 0.25
+
+# Player climb animation playback (KosmX playerAnimator layer).
+[animation]
+	#Play the rope-climb animations on your local player while attached to a rope.
+	enableClimbAnimation = true
+	#Playback speed multiplier for the climb animations. 1.0 is authored speed.
+	#Range: 0.1 ~ 5.0
+	animationSpeedMultiplier = 1.0
 ```
 
 Values out of range are clamped or rejected by NeoForge's `ModConfigSpec`
@@ -421,6 +429,55 @@ changes how easy ropes are to aim at, not how climbing feels once attached.
 
 Larger values make ropes much easier to click, at the cost of precision in
 dense rope scenes; `0` requires a pixel-perfect hit on the rope's centerline.
+
+## `[animation]`
+
+These keys control the climb animation layer played on the local player by
+[KosmX's Player Animator](https://modrinth.com/mod/player-animator). They are
+client-side only: the layer runs in the local renderer, the server is not
+involved, and other players see only the vanilla rope-riding hang pose driven
+by `RopeRidingPacket`.
+
+The Player Animator library is a required dependency in `neoforge.mods.toml`
+and must be installed alongside Climbable Ropes. The mod does not jar-in-jar
+the library.
+
+### `enableClimbAnimation`
+
+- **Type:** boolean
+- **Default:** `true`
+
+Master switch for the climb animation layer. With `true`, embarking a rope
+adds an animation layer at priority 40 on top of the vanilla player model and
+plays:
+
+- `climb_up.json` while holding `Forward` (W).
+- `descend.json` while holding `Back` (S), coasting from a slide, or while
+  the slide is active above `descendSpeed`.
+- No animation (vanilla pose) while idle on the rope or while riding a
+  plunger zipline with a `CHAIN_RIDEABLE` item.
+
+On top of the keyframe animation, an `AdjustmentModifier` tilts the body
+bone by the pitch of the rope segment so the player visibly leans with a
+diagonal rope.
+
+With `false`, the layer is removed on the next embark/tick (and never added
+until the value is flipped back). The vanilla pose returns immediately.
+Toggling the value mid-climb is supported: the next animation tick checks the
+flag and either re-adds or removes the layer cleanly.
+
+### `animationSpeedMultiplier`
+
+- **Type:** double
+- **Default:** `1.0`
+- **Range:** `0.1` to `5.0`
+
+Multiplies playback speed of the animation. `0.5` is half-speed (lazy),
+`2.0` doubles the limb cadence (frantic). Useful if you have very high
+`climbSpeed` or `slideSpeed` values and the authored cadence looks too slow
+for the on-screen travel.
+
+This does not retime the underlying physics, only the visual animation.
 
 ## Tuning recipes
 
