@@ -456,8 +456,10 @@ plays:
   coasting from a slide.
 - `slide.json` (a static braced grip pose, no limb motion) while the slide is
   active above `descendSpeed`.
-- No animation (vanilla pose) while idle on the rope or while riding a
-  plunger zipline with a `CHAIN_RIDEABLE` item.
+- `idle.json` (a casual one-handed hang with a slow lazy pendulum sway)
+  while resting on the rope without input.
+- No animation (vanilla pose) while riding a plunger zipline with a
+  `CHAIN_RIDEABLE` item.
 
 On top of the keyframe animation, an `AdjustmentModifier` tilts the body
 bone by the pitch of the rope segment so the player visibly leans with a

@@ -35,6 +35,8 @@ public final class ClimbAnimationController {
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "descend");
     private static final ResourceLocation ANIM_SLIDE =
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "slide");
+    private static final ResourceLocation ANIM_IDLE =
+            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "idle");
 
     private static ModifierLayer<IAnimation> layer;
     private static SpeedModifier speedModifier;
@@ -153,15 +155,14 @@ public final class ClimbAnimationController {
     }
 
     private static IAnimation animationFor(ClimbState state) {
-        if (state == null || state == ClimbState.IDLE) return null;
+        if (state == null) return null;
         if (currentMode == ClimbMode.PLUNGER_ZIPLINE) return null;
         ResourceLocation id = switch (state) {
             case CLIMB_UP -> ANIM_CLIMB_UP;
             case DESCEND -> ANIM_DESCEND;
             case SLIDE -> ANIM_SLIDE;
-            default -> null;
+            case IDLE -> ANIM_IDLE;
         };
-        if (id == null) return null;
         var playable = PlayerAnimationRegistry.getAnimation(id);
         if (!(playable instanceof KeyframeAnimation kf)) return null;
         return new KeyframeAnimationPlayer(kf);
