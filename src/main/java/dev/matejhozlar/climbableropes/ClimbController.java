@@ -32,10 +32,15 @@ public final class ClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     private static final double VERTICAL_BIAS = 0.5;
+    // How far past a strand endpoint the player may drift before being dismounted. The snap spring
+    // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
+    private static final double END_OVERSHOOT_LIMIT = 0.4;
+    private static final int END_OVERSHOOT_DISMOUNT_TICKS = 2;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
     private static int bottomGroundedTimer = 0;
+    private static int endOvershootTimer = 0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
@@ -49,6 +54,7 @@ public final class ClimbController {
             climbingRope = null;
             forwardIsLast = true;
             bottomGroundedTimer = 0;
+            endOvershootTimer = 0;
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
@@ -178,6 +184,7 @@ public final class ClimbController {
         leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
+        endOvershootTimer = 0;
         slideVelocity = 0.0;
         forwardIsLast = computeForwardIsLast(mc, player, rope);
 
@@ -245,6 +252,7 @@ public final class ClimbController {
         climbingRope = null;
         forwardIsLast = true;
         bottomGroundedTimer = 0;
+        endOvershootTimer = 0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
@@ -303,6 +311,14 @@ public final class ClimbController {
         if (sq.distSqr > maxLeash * maxLeash) {
             disembark();
             return;
+        }
+        if (sq.endOvershoot > END_OVERSHOOT_LIMIT) {
+            if (++endOvershootTimer > END_OVERSHOOT_DISMOUNT_TICKS) {
+                disembark();
+                return;
+            }
+        } else {
+            endOvershootTimer = 0;
         }
         Vec3 ropeWorld = sq.position;
         Vec3 tangent = sq.tangent;
@@ -421,19 +437,24 @@ public final class ClimbController {
 
     private static StrandQuery findClosestSegment(ClientRopeStrand strand, Vec3 target) {
         var points = strand.getPoints();
+        int segCount = points.size() - 1;
         double minDistSq = Double.MAX_VALUE;
         Vec3 minPoint = Vec3.ZERO;
         Vec3 minTangent = new Vec3(0.0, 1.0, 0.0);
         double minArc = 0.0;
+        double minRaw = 0.0;
+        double minSegLen = 0.0;
+        int minSegIndex = -1;
         double cumulative = 0.0;
-        for (int i = 0; i < points.size() - 1; i++) {
+        for (int i = 0; i < segCount; i++) {
             Vec3 a = JOMLConversion.toMojang(points.get(i).position());
             Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
             Vec3 ab = b.subtract(a);
             double abLen = ab.length();
             if (abLen >= 1e-6) {
                 Vec3 dir = ab.scale(1.0 / abLen);
-                double along = Math.max(0.0, Math.min(abLen, target.subtract(a).dot(dir)));
+                double raw = target.subtract(a).dot(dir);
+                double along = Math.max(0.0, Math.min(abLen, raw));
                 Vec3 onSeg = a.add(dir.scale(along));
                 double distSq = onSeg.distanceToSqr(target);
                 if (distSq < minDistSq) {
@@ -441,11 +462,20 @@ public final class ClimbController {
                     minPoint = onSeg;
                     minTangent = dir;
                     minArc = cumulative + along;
+                    minRaw = raw;
+                    minSegLen = abLen;
+                    minSegIndex = i;
                 }
             }
             cumulative += abLen;
         }
-        return new StrandQuery(minPoint, minTangent, minArc, minDistSq);
+        double endOvershoot = 0.0;
+        if (minSegIndex == 0 && minRaw < 0.0) {
+            endOvershoot = -minRaw;
+        } else if (minSegIndex == segCount - 1 && minRaw > minSegLen) {
+            endOvershoot = minRaw - minSegLen;
+        }
+        return new StrandQuery(minPoint, minTangent, minArc, minDistSq, endOvershoot);
     }
 
     private static double totalArcLength(ClientRopeStrand strand) {
@@ -459,7 +489,8 @@ public final class ClimbController {
         return s;
     }
 
-    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr) {}
+    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr,
+                               double endOvershoot) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();
