@@ -28,7 +28,8 @@ public final class ClimbAnimationController {
 
     private static final int LAYER_PRIORITY = 40;
     private static final int FADE_TICKS = 4;
-    private static final double MAX_BODY_TILT_RAD = Math.toRadians(60.0);
+    private static final double MAX_BODY_TILT_RAD = Math.toRadians(18.0);
+    private static final double BODY_TILT_SCALE = 0.45;
     private static final ResourceLocation ANIM_CLIMB_UP =
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_up");
     private static final ResourceLocation ANIM_DESCEND =
@@ -70,7 +71,7 @@ public final class ClimbAnimationController {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || layer == null) return;
         if (ropeTangent != null) {
-            bodyPitchRad = computeBodyTilt(ropeTangent, player);
+            bodyPitchRad = computeBodyTilt(ropeTangent);
         }
         if (speedModifier != null) {
             speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
@@ -81,19 +82,14 @@ public final class ClimbAnimationController {
         }
     }
 
-    private static float computeBodyTilt(Vec3 ropeTangent, LocalPlayer player) {
+    private static float computeBodyTilt(Vec3 ropeTangent) {
         double len = ropeTangent.length();
         if (len < 1.0e-6) return 0f;
-        double tx = ropeTangent.x / len;
         double ty = ropeTangent.y / len;
-        double tz = ropeTangent.z / len;
-        double horizontal = Math.sqrt(Math.max(0.0, tx * tx + tz * tz));
-        if (horizontal < 1.0e-4) return 0f;
+        double horizontal = Math.sqrt(Math.max(0.0, 1.0 - ty * ty));
         double angleFromVertical = Math.atan2(horizontal, Math.abs(ty));
-        double yawRad = Math.toRadians(player.getYRot());
-        double forwardDot = (-Math.sin(yawRad) * tx + Math.cos(yawRad) * tz) / horizontal;
-        double signed = angleFromVertical * Math.signum(forwardDot);
-        return (float) Math.max(-MAX_BODY_TILT_RAD, Math.min(MAX_BODY_TILT_RAD, signed));
+        double tilt = angleFromVertical * BODY_TILT_SCALE;
+        return (float) Math.min(MAX_BODY_TILT_RAD, tilt);
     }
 
     public static void onDisembark() {

@@ -461,9 +461,11 @@ plays:
 - No animation (vanilla pose) while riding a plunger zipline with a
   `CHAIN_RIDEABLE` item.
 
-On top of the keyframe animation, an `AdjustmentModifier` tilts the body
-bone by the pitch of the rope segment so the player visibly leans with a
-diagonal rope.
+On top of the keyframe animation, an `AdjustmentModifier` applies a gentle
+body-bone lean scaled from the rope segment's angle off vertical, so the
+player leans into a diagonal rope. The lean is scaled down and capped at a
+small angle, so a near-horizontal rope produces a subtle lean rather than
+rotating the torso flat.
 
 With `false`, the layer is removed on the next embark/tick (and never added
 until the value is flipped back). The vanilla pose returns immediately.
