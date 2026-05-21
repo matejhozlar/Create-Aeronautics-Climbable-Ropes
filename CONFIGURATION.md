@@ -432,15 +432,15 @@ dense rope scenes; `0` requires a pixel-perfect hit on the rope's centerline.
 
 ## `[animation]`
 
-These keys control the climb animation layer played on the local player by
-[KosmX's Player Animator](https://modrinth.com/mod/player-animator). They are
-client-side only: the layer runs in the local renderer, the server is not
-involved, and other players see only the vanilla rope-riding hang pose driven
-by `RopeRidingPacket`.
+These keys control the climb animation layer driven by
+[KosmX's Player Animator](https://modrinth.com/mod/player-animator). The
+animation is client-side rendering, but climb state is synced between clients,
+so other players see the same animations rather than the vanilla rope-riding
+hang pose.
 
-The Player Animator library is a required dependency in `neoforge.mods.toml`
-and must be installed alongside Climbable Ropes. The mod does not jar-in-jar
-the library.
+The Player Animator library is MIT-licensed and bundled inside Climbable Ropes
+via jar-in-jar, so it does not need to be installed separately. If a standalone
+copy is also present, NeoForge loads whichever version is newer.
 
 ### `enableClimbAnimation`
 

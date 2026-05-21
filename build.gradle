@@ -117,6 +117,14 @@ dependencies {
 
     compileOnly("dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}")
     localRuntime("dev.kosmx.player-anim:player-animation-lib-forge:${player_anim_version}")
+    // Bundle the (MIT-licensed) Player Animator library so end users do not install it separately.
+    // NeoForge deduplicates by version, so a standalone copy in mods/ takes precedence when newer.
+    jarJar("dev.kosmx.player-anim:player-animation-lib-forge") {
+        version {
+            strictly "[2.0.4,)"
+            prefer "${player_anim_version}"
+        }
+    }
 
     // create-aeronautics jar-in-jars Simulated, Aeronautics, and Offroad at runtime.
     localRuntime("maven.modrinth:sable:${sable_mod_version}+mc${minecraft_version}")
