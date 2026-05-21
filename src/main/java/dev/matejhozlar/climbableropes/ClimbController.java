@@ -41,12 +41,6 @@ public final class ClimbController {
 
     private ClimbController() {}
 
-    public static boolean isLocalOnRope() {
-        return climbingRope != null
-                || PlungerClimbController.isClimbing()
-                || PlungerZiplineController.isRiding();
-    }
-
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
@@ -422,9 +416,7 @@ public final class ClimbController {
         Vec3 perp = forward.subtract(ropeDir.scale(forward.dot(ropeDir)));
         double len = perp.length();
         if (len < 1e-6) return Vec3.ZERO;
-        // Fade the side offset out as the rope flattens so the player hangs below near-horizontal ropes, not beside them.
-        double verticality = Math.abs(ropeDir.y);
-        return perp.scale(CLIMB_SIDE_OFFSET * verticality / len);
+        return perp.scale(CLIMB_SIDE_OFFSET / len);
     }
 
     private static StrandQuery findClosestSegment(ClientRopeStrand strand, Vec3 target) {

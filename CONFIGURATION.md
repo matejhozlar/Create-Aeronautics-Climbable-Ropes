@@ -447,9 +447,10 @@ the library.
 - **Type:** boolean
 - **Default:** `true`
 
-Master switch for the climb animation layer. With `true`, embarking a rope
-adds an animation layer at priority 40 on top of the vanilla player model and
-plays:
+Master switch for the climb animation layer. The custom animations only play
+on **vertical-ish ropes** (within 45 degrees of vertical). With `true`,
+embarking such a rope adds an animation layer at priority 40 on top of the
+vanilla player model and plays:
 
 - `climb_up.json` (hand-over-hand overhead reach) while holding `Forward` (W).
 - `descend.json` (lower-amplitude descent) while holding `Back` (S) or
@@ -458,19 +459,22 @@ plays:
   active above `descendSpeed`.
 - `idle.json` (a casual one-handed hang with a slow lazy pendulum sway)
   while resting on the rope without input.
-- No animation (vanilla pose) while riding a plunger zipline with a
-  `CHAIN_RIDEABLE` item.
 
-On top of the keyframe animation, an `AdjustmentModifier` applies a gentle
-body-bone lean scaled from the rope segment's angle off vertical, so the
-player leans into a diagonal rope. The lean is scaled down and capped at a
-small angle, so a near-horizontal rope produces a subtle lean rather than
-rotating the torso flat.
+While climbing a vertical-ish rope, the whole local player model is also
+rotated to follow the rope's angle, easing in and out, so the animations
+stay aligned with the rope. This is a client-side visual only; the collision
+hitbox stays upright.
+
+On ropes flatter than 45 degrees, and while riding a plunger zipline, no
+custom animation plays: instead the player keeps Create's chain-conveyor
+hanging pose (which Climbable Ropes otherwise suppresses). The overhead
+climbing reach is not authored for near-horizontal ropes, so Create's pose
+is used there as a fitting fallback.
 
 With `false`, the layer is removed on the next embark/tick (and never added
-until the value is flipped back). The vanilla pose returns immediately.
-Toggling the value mid-climb is supported: the next animation tick checks the
-flag and either re-adds or removes the layer cleanly.
+until the value is flipped back). Create's hanging pose is then used on every
+rope. Toggling the value mid-climb is supported: the next animation tick
+checks the flag and either re-adds or removes the layer cleanly.
 
 ### `animationSpeedMultiplier`
 

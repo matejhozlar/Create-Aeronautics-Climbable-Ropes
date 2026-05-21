@@ -4,11 +4,9 @@ import dev.kosmx.playerAnim.api.layered.IAnimation;
 import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
 import dev.kosmx.playerAnim.api.layered.ModifierLayer;
 import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
-import dev.kosmx.playerAnim.api.layered.modifier.AdjustmentModifier;
 import dev.kosmx.playerAnim.api.layered.modifier.SpeedModifier;
 import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
-import dev.kosmx.playerAnim.core.util.Vec3f;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import net.minecraft.client.Minecraft;
@@ -18,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 
 @OnlyIn(Dist.CLIENT)
@@ -28,8 +26,8 @@ public final class ClimbAnimationController {
 
     private static final int LAYER_PRIORITY = 40;
     private static final int FADE_TICKS = 4;
-    private static final double MAX_BODY_TILT_RAD = Math.toRadians(18.0);
-    private static final double BODY_TILT_SCALE = 0.45;
+    // cos(45deg): ropes flatter than this fall back to Create's hanging pose.
+    private static final double VERTICAL_TANGENT_Y = 0.7071;
     private static final ResourceLocation ANIM_CLIMB_UP =
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_up");
     private static final ResourceLocation ANIM_DESCEND =
@@ -43,8 +41,8 @@ public final class ClimbAnimationController {
     private static SpeedModifier speedModifier;
     private static UUID registeredFor;
     private static ClimbMode currentMode;
-    private static ClimbState currentState;
-    private static float bodyPitchRad;
+    private static ResourceLocation currentAnimId;
+    private static Vec3 ropeTangent;
 
     private ClimbAnimationController() {}
 
@@ -57,39 +55,28 @@ public final class ClimbAnimationController {
         if (player == null) return;
         ensureLayer(player);
         currentMode = mode;
-        bodyPitchRad = 0f;
-        ClimbState initial = ClimbState.IDLE;
-        setAnimation(initial, false);
-        currentState = initial;
+        currentAnimId = null;
+        ropeTangent = null;
     }
 
-    public static void onTick(Vec3 ropeTangent, ClimbState state) {
+    public static void onTick(Vec3 tangent, ClimbState state) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) {
             removeLayer();
             return;
         }
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || layer == null) return;
-        if (ropeTangent != null) {
-            bodyPitchRad = computeBodyTilt(ropeTangent);
-        }
+
+        ropeTangent = tangent;
         if (speedModifier != null) {
             speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
         }
-        if (state != currentState) {
-            setAnimation(state, true);
-            currentState = state;
-        }
-    }
 
-    private static float computeBodyTilt(Vec3 ropeTangent) {
-        double len = ropeTangent.length();
-        if (len < 1.0e-6) return 0f;
-        double ty = ropeTangent.y / len;
-        double horizontal = Math.sqrt(Math.max(0.0, 1.0 - ty * ty));
-        double angleFromVertical = Math.atan2(horizontal, Math.abs(ty));
-        double tilt = angleFromVertical * BODY_TILT_SCALE;
-        return (float) Math.min(MAX_BODY_TILT_RAD, tilt);
+        ResourceLocation desired = desiredAnimation(state, tangent);
+        if (!Objects.equals(desired, currentAnimId)) {
+            applyAnimation(desired, currentAnimId != null);
+            currentAnimId = desired;
+        }
     }
 
     public static void onDisembark() {
@@ -98,8 +85,33 @@ public final class ClimbAnimationController {
                     AbstractFadeModifier.standardFadeIn(FADE_TICKS, Ease.INOUTSINE), null);
         }
         currentMode = null;
-        currentState = null;
-        bodyPitchRad = 0f;
+        currentAnimId = null;
+        ropeTangent = null;
+    }
+
+    public static boolean isCustomPoseActive() {
+        return layer != null && currentAnimId != null;
+    }
+
+    public static Vec3 currentRopeTangent() {
+        return currentAnimId != null ? ropeTangent : null;
+    }
+
+    private static ResourceLocation desiredAnimation(ClimbState state, Vec3 tangent) {
+        if (currentMode == ClimbMode.PLUNGER_ZIPLINE || state == null) return null;
+        if (!isVerticalish(tangent)) return null;
+        return switch (state) {
+            case CLIMB_UP -> ANIM_CLIMB_UP;
+            case DESCEND -> ANIM_DESCEND;
+            case SLIDE -> ANIM_SLIDE;
+            case IDLE -> ANIM_IDLE;
+        };
+    }
+
+    private static boolean isVerticalish(Vec3 tangent) {
+        if (tangent == null) return false;
+        double len = tangent.length();
+        return len > 1.0e-6 && Math.abs(tangent.y) / len >= VERTICAL_TANGENT_Y;
     }
 
     private static void removeLayer() {
@@ -115,8 +127,8 @@ public final class ClimbAnimationController {
         speedModifier = null;
         registeredFor = null;
         currentMode = null;
-        currentState = null;
-        bodyPitchRad = 0f;
+        currentAnimId = null;
+        ropeTangent = null;
     }
 
     private static void ensureLayer(LocalPlayer player) {
@@ -128,20 +140,13 @@ public final class ClimbAnimationController {
         speedModifier = new SpeedModifier();
         speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
         layer.addModifierLast(speedModifier);
-        layer.addModifierLast(new AdjustmentModifier(name ->
-                "body".equals(name)
-                        ? Optional.of(new AdjustmentModifier.PartModifier(
-                                new Vec3f(bodyPitchRad, 0f, 0f),
-                                new Vec3f(0f, 0f, 0f),
-                                new Vec3f(0f, 0f, 0f)))
-                        : Optional.empty()));
 
         PlayerAnimationAccess.getPlayerAnimLayer(player).addAnimLayer(LAYER_PRIORITY, layer);
         registeredFor = id;
     }
 
-    private static void setAnimation(ClimbState state, boolean fade) {
-        IAnimation anim = animationFor(state);
+    private static void applyAnimation(ResourceLocation id, boolean fade) {
+        IAnimation anim = load(id);
         if (fade) {
             layer.replaceAnimationWithFade(
                     AbstractFadeModifier.standardFadeIn(FADE_TICKS, Ease.INOUTSINE), anim);
@@ -150,15 +155,8 @@ public final class ClimbAnimationController {
         }
     }
 
-    private static IAnimation animationFor(ClimbState state) {
-        if (state == null) return null;
-        if (currentMode == ClimbMode.PLUNGER_ZIPLINE) return null;
-        ResourceLocation id = switch (state) {
-            case CLIMB_UP -> ANIM_CLIMB_UP;
-            case DESCEND -> ANIM_DESCEND;
-            case SLIDE -> ANIM_SLIDE;
-            case IDLE -> ANIM_IDLE;
-        };
+    private static IAnimation load(ResourceLocation id) {
+        if (id == null) return null;
         var playable = PlayerAnimationRegistry.getAnimation(id);
         if (!(playable instanceof KeyframeAnimation kf)) return null;
         return new KeyframeAnimationPlayer(kf);
