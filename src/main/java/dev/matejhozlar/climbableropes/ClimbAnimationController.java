@@ -28,6 +28,7 @@ public final class ClimbAnimationController {
 
     private static final int LAYER_PRIORITY = 40;
     private static final int FADE_TICKS = 4;
+    private static final double MAX_BODY_TILT_RAD = Math.toRadians(60.0);
     private static final ResourceLocation ANIM_CLIMB_UP =
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_up");
     private static final ResourceLocation ANIM_DESCEND =
@@ -65,8 +66,7 @@ public final class ClimbAnimationController {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || layer == null) return;
         if (ropeTangent != null) {
-            double yComp = Math.max(-1.0, Math.min(1.0, ropeTangent.y));
-            bodyPitchRad = (float) Math.asin(yComp);
+            bodyPitchRad = computeBodyTilt(ropeTangent, player);
         }
         if (speedModifier != null) {
             speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
@@ -75,6 +75,21 @@ public final class ClimbAnimationController {
             setAnimation(state, true);
             currentState = state;
         }
+    }
+
+    private static float computeBodyTilt(Vec3 ropeTangent, LocalPlayer player) {
+        double len = ropeTangent.length();
+        if (len < 1.0e-6) return 0f;
+        double tx = ropeTangent.x / len;
+        double ty = ropeTangent.y / len;
+        double tz = ropeTangent.z / len;
+        double horizontal = Math.sqrt(Math.max(0.0, tx * tx + tz * tz));
+        if (horizontal < 1.0e-4) return 0f;
+        double angleFromVertical = Math.atan2(horizontal, Math.abs(ty));
+        double yawRad = Math.toRadians(player.getYRot());
+        double forwardDot = (-Math.sin(yawRad) * tx + Math.cos(yawRad) * tz) / horizontal;
+        double signed = angleFromVertical * Math.signum(forwardDot);
+        return (float) Math.max(-MAX_BODY_TILT_RAD, Math.min(MAX_BODY_TILT_RAD, signed));
     }
 
     public static void onDisembark() {
