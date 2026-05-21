@@ -35,12 +35,11 @@ public final class ClimbController {
     // How far past a strand endpoint the player may drift before being dismounted. The snap spring
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
     private static final double END_OVERSHOOT_LIMIT = 0.4;
-    private static final int END_OVERSHOOT_DISMOUNT_TICKS = 2;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
     private static int bottomGroundedTimer = 0;
-    private static int endOvershootTimer = 0;
+    private static double prevEndOvershoot = 0.0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
@@ -54,7 +53,7 @@ public final class ClimbController {
             climbingRope = null;
             forwardIsLast = true;
             bottomGroundedTimer = 0;
-            endOvershootTimer = 0;
+            prevEndOvershoot = 0.0;
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
@@ -184,7 +183,7 @@ public final class ClimbController {
         leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
-        endOvershootTimer = 0;
+        prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
         forwardIsLast = computeForwardIsLast(mc, player, rope);
 
@@ -252,7 +251,7 @@ public final class ClimbController {
         climbingRope = null;
         forwardIsLast = true;
         bottomGroundedTimer = 0;
-        endOvershootTimer = 0;
+        prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
@@ -311,14 +310,6 @@ public final class ClimbController {
         if (sq.distSqr > maxLeash * maxLeash) {
             disembark();
             return;
-        }
-        if (sq.endOvershoot > END_OVERSHOOT_LIMIT) {
-            if (++endOvershootTimer > END_OVERSHOOT_DISMOUNT_TICKS) {
-                disembark();
-                return;
-            }
-        } else {
-            endOvershootTimer = 0;
         }
         Vec3 ropeWorld = sq.position;
         Vec3 tangent = sq.tangent;
@@ -385,6 +376,16 @@ public final class ClimbController {
         if (speedAlong < 0 && arcRemainingBackward <= 1.0E-3) {
             speedAlong = 0.0;
             slideVelocity = 0.0;
+        }
+
+        // A fast descent overshoots an endpoint for a tick or two while the snap recovers; sustained
+        // drift past an end (vanilla ground walking, faster with sprint) instead keeps the mod's own
+        // climb velocity at zero while the overshoot holds or grows.
+        boolean overshootGrowing = sq.endOvershoot >= prevEndOvershoot;
+        prevEndOvershoot = sq.endOvershoot;
+        if (speedAlong == 0.0 && overshootGrowing && sq.endOvershoot > END_OVERSHOOT_LIMIT) {
+            disembark();
+            return;
         }
 
         Vec3 climbVel = forwardAlongStrand.scale(speedAlong);
