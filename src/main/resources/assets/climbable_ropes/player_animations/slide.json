@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "name": "slide",
+  "author": "saunhardy",
+  "description": "Static braced grip pose held while sprint-sliding down a rope, no limb motion.",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 20,
+    "stopTick": 20,
+    "isLoop": true,
+    "returnTick": 0,
+    "degrees": true,
+    "easeBeforeKeyframe": false,
+    "moves": [
+      { "tick": 0,  "easing": "linear", "rightArm": { "pitch": -150, "yaw":  0, "roll":  16 } },
+      { "tick": 0,  "easing": "linear", "leftArm":  { "pitch": -150, "yaw":  0, "roll": -16 } },
+      { "tick": 0,  "easing": "linear", "rightLeg": { "pitch":    4, "yaw":  0, "roll":   4 } },
+      { "tick": 0,  "easing": "linear", "leftLeg":  { "pitch":    4, "yaw":  0, "roll":  -4 } },
+      { "tick": 0,  "easing": "linear", "body":     { "pitch":    8, "yaw":  0, "roll":   0 } },
+      { "tick": 0,  "easing": "linear", "head":     { "pitch":    4, "yaw":  0, "roll":   0 } },
+
+      { "tick": 20, "easing": "linear", "rightArm": { "pitch": -150, "yaw":  0, "roll":  16 } },
+      { "tick": 20, "easing": "linear", "leftArm":  { "pitch": -150, "yaw":  0, "roll": -16 } },
+      { "tick": 20, "easing": "linear", "rightLeg": { "pitch":    4, "yaw":  0, "roll":   4 } },
+      { "tick": 20, "easing": "linear", "leftLeg":  { "pitch":    4, "yaw":  0, "roll":  -4 } },
+      { "tick": 20, "easing": "linear", "body":     { "pitch":    8, "yaw":  0, "roll":   0 } },
+      { "tick": 20, "easing": "linear", "head":     { "pitch":    4, "yaw":  0, "roll":   0 } }
+    ]
+  }
+}

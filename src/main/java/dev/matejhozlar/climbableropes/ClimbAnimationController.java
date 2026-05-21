@@ -33,6 +33,8 @@ public final class ClimbAnimationController {
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_up");
     private static final ResourceLocation ANIM_DESCEND =
             ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "descend");
+    private static final ResourceLocation ANIM_SLIDE =
+            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "slide");
 
     private static ModifierLayer<IAnimation> layer;
     private static SpeedModifier speedModifier;
@@ -155,7 +157,8 @@ public final class ClimbAnimationController {
         if (currentMode == ClimbMode.PLUNGER_ZIPLINE) return null;
         ResourceLocation id = switch (state) {
             case CLIMB_UP -> ANIM_CLIMB_UP;
-            case DESCEND, SLIDE -> ANIM_DESCEND;
+            case DESCEND -> ANIM_DESCEND;
+            case SLIDE -> ANIM_SLIDE;
             default -> null;
         };
         if (id == null) return null;

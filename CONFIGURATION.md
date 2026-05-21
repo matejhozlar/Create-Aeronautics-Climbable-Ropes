@@ -451,9 +451,11 @@ Master switch for the climb animation layer. With `true`, embarking a rope
 adds an animation layer at priority 40 on top of the vanilla player model and
 plays:
 
-- `climb_up.json` while holding `Forward` (W).
-- `descend.json` while holding `Back` (S), coasting from a slide, or while
-  the slide is active above `descendSpeed`.
+- `climb_up.json` (hand-over-hand overhead reach) while holding `Forward` (W).
+- `descend.json` (lower-amplitude descent) while holding `Back` (S) or
+  coasting from a slide.
+- `slide.json` (a static braced grip pose, no limb motion) while the slide is
+  active above `descendSpeed`.
 - No animation (vanilla pose) while idle on the rope or while riding a
   plunger zipline with a `CHAIN_RIDEABLE` item.
 
