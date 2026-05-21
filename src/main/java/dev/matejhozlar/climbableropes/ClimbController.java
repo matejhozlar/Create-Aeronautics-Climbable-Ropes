@@ -37,6 +37,8 @@ public final class ClimbController {
     // How far past a strand endpoint the player may drift before being dismounted. The snap spring
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
     private static final double END_OVERSHOOT_LIMIT = 0.4;
+    // Arc slack for treating a strand endpoint as reached; absorbs the snap spring's sub-tick jitter.
+    private static final double AT_END_ARC_EPSILON = 0.05;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
@@ -231,11 +233,11 @@ public final class ClimbController {
         Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottom = first.y < last.y ? first : last;
-        boolean atBottom = clickPoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
+        boolean descentBlocked = clickPoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
 
         double targetY;
         Vec3 ropePoint;
-        if (atBottom) {
+        if (descentBlocked) {
             ropePoint = bottom;
             targetY = bottom.y;
         } else {
@@ -354,8 +356,10 @@ public final class ClimbController {
             return;
         }
 
+        // Feet, not the climb anchor: the anchor sits ~2.3 blocks up, so a rope ending near the
+        // ground would never register as "at the bottom" for the grounded dismount.
         if (player.onGround() && !climbUp
-                && anchor.y < bottomPoint.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
+                && player.getY() < bottomPoint.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
             if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
                 return;
@@ -365,6 +369,9 @@ public final class ClimbController {
         }
 
         if (climbUp && arcRemainingForward <= 0.0) climbUp = false;
+        // A grounded player can't descend further; the descent's horizontal pull would otherwise
+        // drag them off an angled rope's lower end across the ground.
+        boolean descentBlocked = arcRemainingBackward <= AT_END_ARC_EPSILON || player.onGround();
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
         double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
@@ -373,8 +380,9 @@ public final class ClimbController {
         double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
         double verticalComponent = Math.abs(forwardAlongStrand.y);
-        boolean slideEffective = climbDown && sprint && slideSpeed * verticalComponent > descendSpeed;
-        if (climbUp) {
+        boolean slideEffective = climbDown && sprint && !descentBlocked
+                && slideSpeed * verticalComponent > descendSpeed;
+        if (climbUp || descentBlocked) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
@@ -385,19 +393,15 @@ public final class ClimbController {
 
         double speedAlong;
         if (climbUp) speedAlong = Math.min(climbSpeed, arcRemainingForward);
+        else if (descentBlocked) speedAlong = 0.0;
         else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
         else if (climbDown) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
+        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, arcRemainingBackward);
 
-        if (speedAlong < 0 && arcRemainingBackward <= 1.0E-3) {
-            speedAlong = 0.0;
-            slideVelocity = 0.0;
-        }
-
-        // A fast descent overshoots an endpoint for a tick or two while the snap recovers; sustained
-        // drift past an end (vanilla ground walking, faster with sprint) instead keeps the mod's own
-        // climb velocity at zero while the overshoot holds or grows.
+        // The mod clamps its own descent at the endpoints, so a growing overshoot means an external
+        // force is pushing the player past a strand end; dismount once it passes the limit.
         boolean overshootGrowing = sq.endOvershoot >= prevEndOvershoot;
         prevEndOvershoot = sq.endOvershoot;
         if (speedAlong == 0.0 && overshootGrowing && sq.endOvershoot > END_OVERSHOOT_LIMIT) {
@@ -416,13 +420,15 @@ public final class ClimbController {
         double xVel = dx * snapPull;
         double yVel = dy * snapPull;
         double zVel = dz * snapPull;
-        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > snapVelCap) {
-            double scale = snapVelCap / snapMag;
+        // Cap horizontal and vertical pull separately: a large vertical correction (player grounded
+        // far below a near-horizontal rope) must not starve the horizontal hold that keeps them on.
+        double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
+        if (horizMag > snapVelCap) {
+            double scale = snapVelCap / horizMag;
             xVel *= scale;
-            yVel *= scale;
             zVel *= scale;
         }
+        yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
@@ -430,7 +436,7 @@ public final class ClimbController {
         ClimbAnimationController.ClimbState animState;
         if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
         else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
-        else if (climbDown || slideVelocity > 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else if (speedAlong < 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
         else animState = ClimbAnimationController.ClimbState.IDLE;
         ClimbAnimationController.onTick(forwardAlongStrand, animState);
 

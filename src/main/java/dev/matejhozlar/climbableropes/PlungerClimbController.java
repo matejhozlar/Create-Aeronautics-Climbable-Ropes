@@ -26,6 +26,8 @@ final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double PLUNGER_END_OFFSET = 0.6;
+    // Arc slack for treating a rope endpoint as reached; absorbs the snap spring's sub-tick jitter.
+    private static final double AT_END_ARC_EPSILON = 0.05;
 
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
@@ -110,7 +112,9 @@ final class PlungerClimbController {
         }
 
         Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
-        boolean nearBottom = anchor.y < lowerEnd.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get();
+        // Feet, not the climb anchor: the anchor sits ~2.3 blocks up, so a rope ending near the
+        // ground would never register as "at the bottom" for the grounded dismount.
+        boolean nearBottom = player.getY() < lowerEnd.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get();
         if (player.onGround() && !climbUp && nearBottom) {
             if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
@@ -128,10 +132,13 @@ final class PlungerClimbController {
 
         double remainingUp = Math.max(0.0, abLen - t);
         if (climbUp && remainingUp <= 0.0) climbUp = false;
+        // A grounded player can't descend further; the descent's horizontal pull would otherwise
+        // drag them off an angled rope's lower end across the ground.
+        boolean descentBlocked = t <= AT_END_ARC_EPSILON || player.onGround();
 
         double sinAngle = Math.abs(dir.y);
-        boolean slideEffective = climbDown && sprint && slideSpeed * sinAngle > descendSpeed;
-        if (climbUp) {
+        boolean slideEffective = climbDown && sprint && !descentBlocked && slideSpeed * sinAngle > descendSpeed;
+        if (climbUp || descentBlocked) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
@@ -142,10 +149,12 @@ final class PlungerClimbController {
 
         double speedAlong;
         if (climbUp) speedAlong = Math.min(climbSpeed, remainingUp);
+        else if (descentBlocked) speedAlong = 0.0;
         else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
         else if (climbDown) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
+        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, t);
         Vec3 climbVel = dir.scale(speedAlong);
 
         double snapPull = ClimbableRopesConfig.SNAP_PULL.get();
@@ -154,13 +163,15 @@ final class PlungerClimbController {
         double xVel = (target.x - anchor.x) * snapPull;
         double yVel = (target.y - anchor.y) * snapPull;
         double zVel = (target.z - anchor.z) * snapPull;
-        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > snapVelCap) {
-            double scale = snapVelCap / snapMag;
+        // Cap horizontal and vertical pull separately: a large vertical correction (player grounded
+        // far below a near-horizontal rope) must not starve the horizontal hold that keeps them on.
+        double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
+        if (horizMag > snapVelCap) {
+            double scale = snapVelCap / horizMag;
             xVel *= scale;
-            yVel *= scale;
             zVel *= scale;
         }
+        yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
@@ -168,7 +179,7 @@ final class PlungerClimbController {
         ClimbAnimationController.ClimbState animState;
         if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
         else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
-        else if (climbDown || slideVelocity > 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else if (speedAlong < 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
         else animState = ClimbAnimationController.ClimbState.IDLE;
         ClimbAnimationController.onTick(dir, animState);
 
@@ -223,10 +234,10 @@ final class PlungerClimbController {
         Vec3 ropePoint = posA.add(dirAB.scale(t));
 
         Vec3 lowerEnd = posA.y < posB.y ? posA : posB;
-        boolean atBottom = ropePoint.distanceToSqr(lowerEnd) < 1.0;
+        boolean descentBlocked = ropePoint.distanceToSqr(lowerEnd) < 1.0;
 
         double targetY;
-        if (atBottom) {
+        if (descentBlocked) {
             ropePoint = lowerEnd;
             targetY = lowerEnd.y;
         } else {
