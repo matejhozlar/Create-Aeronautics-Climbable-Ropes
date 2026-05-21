@@ -346,7 +346,9 @@ final class PlungerClimbController {
         Vec3 perp = forward.subtract(ropeDir.scale(forward.dot(ropeDir)));
         double len = perp.length();
         if (len < 1e-6) return Vec3.ZERO;
-        return perp.scale(CLIMB_SIDE_OFFSET / len);
+        // Fade the side offset out as the rope flattens so the player hangs below near-horizontal ropes, not beside them.
+        double verticality = Math.abs(ropeDir.y);
+        return perp.scale(CLIMB_SIDE_OFFSET * verticality / len);
     }
 
     private static Vec3 anchor(LocalPlayer player) {
