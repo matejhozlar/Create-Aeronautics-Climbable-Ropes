@@ -9,6 +9,8 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
+import dev.matejhozlar.climbableropes.network.ClimbAnimPacket;
+import dev.matejhozlar.climbableropes.network.ClimbableRopesNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
@@ -26,6 +28,8 @@ public final class ClimbAnimationController {
 
     private static final int LAYER_PRIORITY = 40;
     private static final int FADE_TICKS = 4;
+    // Resend the current state periodically so newly-tracking observers pick it up and the rope tangent stays fresh.
+    private static final int SYNC_REFRESH_INTERVAL = 10;
     // cos(45deg): ropes flatter than this fall back to Create's hanging pose.
     private static final double VERTICAL_TANGENT_Y = 0.7071;
     private static final ResourceLocation ANIM_CLIMB_UP =
@@ -43,6 +47,7 @@ public final class ClimbAnimationController {
     private static ClimbMode currentMode;
     private static ResourceLocation currentAnimId;
     private static Vec3 ropeTangent;
+    private static int syncRefreshCounter;
 
     private ClimbAnimationController() {}
 
@@ -76,6 +81,11 @@ public final class ClimbAnimationController {
         if (!Objects.equals(desired, currentAnimId)) {
             applyAnimation(desired, currentAnimId != null);
             currentAnimId = desired;
+            sendSync(desired, tangent);
+            syncRefreshCounter = 0;
+        } else if (desired != null && ++syncRefreshCounter >= SYNC_REFRESH_INTERVAL) {
+            sendSync(desired, tangent);
+            syncRefreshCounter = 0;
         }
     }
 
@@ -84,9 +94,11 @@ public final class ClimbAnimationController {
             layer.replaceAnimationWithFade(
                     AbstractFadeModifier.standardFadeIn(FADE_TICKS, Ease.INOUTSINE), null);
         }
+        if (currentAnimId != null) sendSync(null, null);
         currentMode = null;
         currentAnimId = null;
         ropeTangent = null;
+        syncRefreshCounter = 0;
     }
 
     public static boolean isCustomPoseActive() {
@@ -155,10 +167,22 @@ public final class ClimbAnimationController {
         }
     }
 
-    private static IAnimation load(ResourceLocation id) {
+    static IAnimation load(ResourceLocation id) {
         if (id == null) return null;
         var playable = PlayerAnimationRegistry.getAnimation(id);
         if (!(playable instanceof KeyframeAnimation kf)) return null;
         return new KeyframeAnimationPlayer(kf);
+    }
+
+    private static void sendSync(ResourceLocation animation, Vec3 tangent) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return;
+        UUID id = player.getUUID();
+        if (animation == null) {
+            ClimbableRopesNetwork.sendToServer(new ClimbAnimPacket(id, false, ANIM_IDLE, 0.0, 0.0, 0.0));
+        } else {
+            ClimbableRopesNetwork.sendToServer(new ClimbAnimPacket(
+                    id, true, animation, tangent.x, tangent.y, tangent.z));
+        }
     }
 }

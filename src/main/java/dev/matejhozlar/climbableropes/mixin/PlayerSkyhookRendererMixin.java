@@ -2,6 +2,7 @@ package dev.matejhozlar.climbableropes.mixin;
 
 import com.simibubi.create.foundation.render.PlayerSkyhookRenderer;
 import dev.matejhozlar.climbableropes.ClimbAnimationController;
+import dev.matejhozlar.climbableropes.RemoteClimbAnimations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.world.entity.player.Player;
@@ -33,7 +34,9 @@ public class PlayerSkyhookRendererMixin {
 
     private static boolean climbableRopes$shouldSuppress(Player player) {
         Player local = Minecraft.getInstance().player;
-        if (local == null || !player.getUUID().equals(local.getUUID())) return false;
-        return ClimbAnimationController.isCustomPoseActive();
+        if (local != null && player.getUUID().equals(local.getUUID())) {
+            return ClimbAnimationController.isCustomPoseActive();
+        }
+        return RemoteClimbAnimations.isCustomPoseActive(player.getUUID());
     }
 }
