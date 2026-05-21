@@ -8,14 +8,14 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.UUID;
 
-public record ClimbAnimPacket(UUID player, boolean active, ResourceLocation animation,
-                              double tangentX, double tangentY, double tangentZ)
+public record ClimbAnimSyncPacket(UUID player, boolean active, ResourceLocation animation,
+                                  double tangentX, double tangentY, double tangentZ)
         implements CustomPacketPayload {
 
-    public static final Type<ClimbAnimPacket> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_anim"));
+    public static final Type<ClimbAnimSyncPacket> TYPE = new Type<>(
+            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_anim_sync"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ClimbAnimPacket> CODEC = StreamCodec.of(
+    public static final StreamCodec<RegistryFriendlyByteBuf, ClimbAnimSyncPacket> CODEC = StreamCodec.of(
             (buf, pkt) -> {
                 buf.writeUUID(pkt.player);
                 buf.writeBoolean(pkt.active);
@@ -24,7 +24,7 @@ public record ClimbAnimPacket(UUID player, boolean active, ResourceLocation anim
                 buf.writeDouble(pkt.tangentY);
                 buf.writeDouble(pkt.tangentZ);
             },
-            buf -> new ClimbAnimPacket(
+            buf -> new ClimbAnimSyncPacket(
                     buf.readUUID(), buf.readBoolean(), buf.readResourceLocation(),
                     buf.readDouble(), buf.readDouble(), buf.readDouble()));
 

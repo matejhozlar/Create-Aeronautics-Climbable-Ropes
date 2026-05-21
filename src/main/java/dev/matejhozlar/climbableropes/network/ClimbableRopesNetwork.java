@@ -14,25 +14,25 @@ public final class ClimbableRopesNetwork {
     private ClimbableRopesNetwork() {}
 
     public static void init() {
-        MANAGER.registerServerbound(ClimbAnimPacket.TYPE, ClimbAnimPacket.CODEC,
-                ClimbableRopesNetwork::handleServerbound);
-        MANAGER.registerClientbound(ClimbAnimPacket.TYPE, ClimbAnimPacket.CODEC,
-                ClimbableRopesNetwork::handleClientbound);
+        MANAGER.registerServerbound(ClimbAnimUpdatePacket.TYPE, ClimbAnimUpdatePacket.CODEC,
+                ClimbableRopesNetwork::handleUpdate);
+        MANAGER.registerClientbound(ClimbAnimSyncPacket.TYPE, ClimbAnimSyncPacket.CODEC,
+                ClimbableRopesNetwork::handleSync);
     }
 
-    public static void sendToServer(ClimbAnimPacket packet) {
+    public static void sendToServer(ClimbAnimUpdatePacket packet) {
         VeilPacketManager.server().sendPacket(packet);
     }
 
-    private static void handleServerbound(ClimbAnimPacket packet, ServerPacketContext ctx) {
+    private static void handleUpdate(ClimbAnimUpdatePacket packet, ServerPacketContext ctx) {
         ServerPlayer sender = ctx.player();
-        ClimbAnimPacket relayed = new ClimbAnimPacket(
+        ClimbAnimSyncPacket relayed = new ClimbAnimSyncPacket(
                 sender.getUUID(), packet.active(), packet.animation(),
                 packet.tangentX(), packet.tangentY(), packet.tangentZ());
         VeilPacketManager.tracking(sender).sendPacket(relayed);
     }
 
-    private static void handleClientbound(ClimbAnimPacket packet, ClientPacketContext ctx) {
+    private static void handleSync(ClimbAnimSyncPacket packet, ClientPacketContext ctx) {
         RemoteClimbAnimations.accept(packet);
     }
 }

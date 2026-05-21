@@ -6,7 +6,7 @@ import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
 import dev.kosmx.playerAnim.api.layered.modifier.SpeedModifier;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
-import dev.matejhozlar.climbableropes.network.ClimbAnimPacket;
+import dev.matejhozlar.climbableropes.network.ClimbAnimSyncPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -37,7 +37,7 @@ public final class RemoteClimbAnimations {
 
     private RemoteClimbAnimations() {}
 
-    public static void accept(ClimbAnimPacket packet) {
+    public static void accept(ClimbAnimSyncPacket packet) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
 

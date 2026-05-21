@@ -9,7 +9,7 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
-import dev.matejhozlar.climbableropes.network.ClimbAnimPacket;
+import dev.matejhozlar.climbableropes.network.ClimbAnimUpdatePacket;
 import dev.matejhozlar.climbableropes.network.ClimbableRopesNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -175,14 +175,12 @@ public final class ClimbAnimationController {
     }
 
     private static void sendSync(ResourceLocation animation, Vec3 tangent) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
-        UUID id = player.getUUID();
         if (animation == null) {
-            ClimbableRopesNetwork.sendToServer(new ClimbAnimPacket(id, false, ANIM_IDLE, 0.0, 0.0, 0.0));
+            ClimbableRopesNetwork.sendToServer(
+                    new ClimbAnimUpdatePacket(false, ANIM_IDLE, 0.0, 0.0, 0.0));
         } else {
-            ClimbableRopesNetwork.sendToServer(new ClimbAnimPacket(
-                    id, true, animation, tangent.x, tangent.y, tangent.z));
+            ClimbableRopesNetwork.sendToServer(new ClimbAnimUpdatePacket(
+                    true, animation, tangent.x, tangent.y, tangent.z));
         }
     }
 }
