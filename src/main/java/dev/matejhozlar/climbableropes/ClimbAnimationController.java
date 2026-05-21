@@ -48,6 +48,9 @@ public final class ClimbAnimationController {
     private static ResourceLocation currentAnimId;
     private static Vec3 ropeTangent;
     private static int syncRefreshCounter;
+    // True between embark and the first climb tick, before the rope angle is known. Suppresses
+    // Create's hanging pose during that gap so it does not flash before our animation is applied.
+    private static boolean embarkPending;
 
     private ClimbAnimationController() {}
 
@@ -62,6 +65,7 @@ public final class ClimbAnimationController {
         currentMode = mode;
         currentAnimId = null;
         ropeTangent = null;
+        embarkPending = mode != ClimbMode.PLUNGER_ZIPLINE;
     }
 
     public static void onTick(Vec3 tangent, ClimbState state) {
@@ -72,6 +76,7 @@ public final class ClimbAnimationController {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || layer == null) return;
 
+        embarkPending = false;
         ropeTangent = tangent;
         if (speedModifier != null) {
             speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
@@ -99,10 +104,11 @@ public final class ClimbAnimationController {
         currentAnimId = null;
         ropeTangent = null;
         syncRefreshCounter = 0;
+        embarkPending = false;
     }
 
     public static boolean isCustomPoseActive() {
-        return layer != null && currentAnimId != null;
+        return layer != null && (currentAnimId != null || embarkPending);
     }
 
     public static Vec3 currentRopeTangent() {
@@ -141,6 +147,7 @@ public final class ClimbAnimationController {
         currentMode = null;
         currentAnimId = null;
         ropeTangent = null;
+        embarkPending = false;
     }
 
     private static void ensureLayer(LocalPlayer player) {

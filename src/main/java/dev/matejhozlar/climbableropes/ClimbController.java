@@ -11,6 +11,7 @@ import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -24,6 +25,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 import java.util.UUID;
 
@@ -77,6 +79,21 @@ public final class ClimbController {
         if (ZiplineClientManager.ridingRope != null) return;
 
         tryHoverEmbark(mc, player, justPressed);
+    }
+
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        // While climbing, the mod fully drives movement through setDeltaMovement. Vanilla walk input
+        // (faster with sprint) would otherwise leak through and let the player walk off the rope.
+        // The zipline mode is excluded: it intentionally rides on vanilla WASD movement.
+        if (climbingRope == null && !PlungerClimbController.isClimbing()) return;
+        Input input = event.getInput();
+        input.forwardImpulse = 0.0F;
+        input.leftImpulse = 0.0F;
+        input.up = false;
+        input.down = false;
+        input.left = false;
+        input.right = false;
     }
 
     private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
