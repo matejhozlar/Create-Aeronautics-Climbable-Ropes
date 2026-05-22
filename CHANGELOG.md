@@ -4,12 +4,11 @@
 - Added player climb animations for rope climbing, powered by the Player Animator library. Players now visually climb hand-over-hand, idle with a one-handed hang, and brace during fast slides.
 - Added climb animation syncing so other players in multiplayer can see your climbing animations.
 - Added a new Animation config section with options to enable/disable climb animations and adjust animation speed.
-- Bundled the Player Animator library directly with the mod so it no longer needs to be installed separately.
 
 ### Changed
 - The player model now tilts gently to follow the rope angle while climbing, giving a natural lean on diagonal ropes.
 - Create's chain conveyor hanging pose is now suppressed while riding the mod's ropes, so the custom climb animations display correctly.
-- Horizontal rope climbing currently keeps Create's default conveyor animation; dedicated horizontal climbing animations will follow in the next version.
+- Climb animations currently apply only to vertical ropes (within 45° of vertical); ropes beyond that angle fall back to Create's default pose, as animations for steeper angles need more work and will be added in a later version.
 
 ### Fixed
 - Fixed players drifting off near-horizontal or ground-level ropes due to vanilla walk input bleeding through during a climb.
