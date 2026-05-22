@@ -25,8 +25,11 @@ public final class ClimbableRopesNetwork {
     }
 
     private static void handleUpdate(ClimbAnimUpdatePacket packet, ServerPacketContext ctx) {
-        // A client could forge any id; only relay animations this mod authored.
+        // A client could forge the id or tangent; relay only this mod's animations with a finite
+        // tangent (an Infinity tangent corrupts the pose rotation on other clients).
         if (!ClimbableRopes.MODID.equals(packet.animation().getNamespace())) return;
+        if (!Double.isFinite(packet.tangentX()) || !Double.isFinite(packet.tangentY())
+                || !Double.isFinite(packet.tangentZ())) return;
         ServerPlayer sender = ctx.player();
         ClimbAnimSyncPacket relayed = new ClimbAnimSyncPacket(
                 sender.getUUID(), packet.active(), packet.animation(),
