@@ -25,6 +25,8 @@ public final class ClimbableRopesNetwork {
     }
 
     private static void handleUpdate(ClimbAnimUpdatePacket packet, ServerPacketContext ctx) {
+        // A client could forge any id; only relay animations this mod authored.
+        if (!ClimbableRopes.MODID.equals(packet.animation().getNamespace())) return;
         ServerPlayer sender = ctx.player();
         ClimbAnimSyncPacket relayed = new ClimbAnimSyncPacket(
                 sender.getUUID(), packet.active(), packet.animation(),
