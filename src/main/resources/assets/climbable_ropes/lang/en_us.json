@@ -6,6 +6,7 @@
 	"climbable_ropes.configuration.sliding": "Sliding",
 	"climbable_ropes.configuration.features": "Features",
 	"climbable_ropes.configuration.advanced": "Advanced",
+	"climbable_ropes.configuration.animation": "Animation",
 
 	"climbable_ropes.configuration.climbSpeed": "Climb Speed",
 	"climbable_ropes.configuration.descendSpeed": "Descend Speed",
@@ -26,5 +27,8 @@
 	"climbable_ropes.configuration.maxLeashDistance": "Max Leash Distance",
 	"climbable_ropes.configuration.bottomDismountOffset": "Bottom Dismount Offset",
 	"climbable_ropes.configuration.bottomGroundedDismountTicks": "Bottom Grounded Dismount Ticks",
-	"climbable_ropes.configuration.ropeHoverRadius": "Rope Hover Radius"
+	"climbable_ropes.configuration.ropeHoverRadius": "Rope Hover Radius",
+
+	"climbable_ropes.configuration.enableClimbAnimation": "Enable Climb Animation",
+	"climbable_ropes.configuration.animationSpeedMultiplier": "Animation Speed Multiplier"
 }

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.matejhozlar.climbableropes.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "minVersion": "0.8",
+  "client": [
+    "PlayerSkyhookRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

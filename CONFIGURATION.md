@@ -35,9 +35,9 @@ changes, just like any other server config.
 
 ## File format
 
-The file is standard TOML with four sections: `[climbing]`, `[sliding]`,
-`[features]`, and `[advanced]`. Comments describing each key are written into
-the file automatically. A fresh default file looks like this:
+The file is standard TOML with five sections: `[climbing]`, `[sliding]`,
+`[features]`, `[advanced]`, and `[animation]`. Comments describing each key are
+written into the file automatically. A fresh default file looks like this:
 
 ```toml
 # Climbing motion (blocks per tick).
@@ -100,6 +100,14 @@ the file automatically. A fresh default file looks like this:
 	#Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.
 	#Range: 0.0 ~ 2.0
 	ropeHoverRadius = 0.25
+
+# Player climb animation playback (KosmX playerAnimator layer).
+[animation]
+	#Play the rope-climb animations on your local player while attached to a rope.
+	enableClimbAnimation = true
+	#Playback speed multiplier for the climb animations. 1.0 is authored speed.
+	#Range: 0.1 ~ 5.0
+	animationSpeedMultiplier = 1.0
 ```
 
 Values out of range are clamped or rejected by NeoForge's `ModConfigSpec`
@@ -421,6 +429,65 @@ changes how easy ropes are to aim at, not how climbing feels once attached.
 
 Larger values make ropes much easier to click, at the cost of precision in
 dense rope scenes; `0` requires a pixel-perfect hit on the rope's centerline.
+
+## `[animation]`
+
+These keys control the climb animation layer driven by
+[KosmX's Player Animator](https://modrinth.com/mod/player-animator). The
+animation is client-side rendering, but climb state is synced between clients,
+so other players see the same animations rather than the vanilla rope-riding
+hang pose.
+
+The Player Animator library is MIT-licensed and bundled inside Climbable Ropes
+via jar-in-jar, so it does not need to be installed separately. If a standalone
+copy is also present, NeoForge loads whichever version is newer.
+
+### `enableClimbAnimation`
+
+- **Type:** boolean
+- **Default:** `true`
+
+Master switch for the climb animation layer. The custom animations only play
+on **vertical-ish ropes** (within 45 degrees of vertical). With `true`,
+embarking such a rope adds an animation layer at priority 40 on top of the
+vanilla player model and plays:
+
+- `climb_up.json` (hand-over-hand overhead reach) while holding `Forward` (W).
+- `descend.json` (lower-amplitude descent) while holding `Back` (S) or
+  coasting from a slide.
+- `slide.json` (a static braced grip pose, no limb motion) while the slide is
+  active above `descendSpeed`.
+- `idle.json` (a casual one-handed hang with a slow lazy pendulum sway)
+  while resting on the rope without input.
+
+While climbing a vertical-ish rope, the whole local player model is also
+rotated to follow the rope's angle, easing in and out, so the animations
+stay aligned with the rope. This is a client-side visual only; the collision
+hitbox stays upright.
+
+On ropes flatter than 45 degrees, and while riding a plunger zipline, no
+custom animation plays: instead the player keeps Create's chain-conveyor
+hanging pose (which Climbable Ropes otherwise suppresses). The overhead
+climbing reach is not authored for near-horizontal ropes, so Create's pose
+is used there as a fitting fallback.
+
+With `false`, the layer is removed on the next embark/tick (and never added
+until the value is flipped back). Create's hanging pose is then used on every
+rope. Toggling the value mid-climb is supported: the next animation tick
+checks the flag and either re-adds or removes the layer cleanly.
+
+### `animationSpeedMultiplier`
+
+- **Type:** double
+- **Default:** `1.0`
+- **Range:** `0.1` to `5.0`
+
+Multiplies playback speed of the animation. `0.5` is half-speed (lazy),
+`2.0` doubles the limb cadence (frantic). Useful if you have very high
+`climbSpeed` or `slideSpeed` values and the authored cadence looks too slow
+for the on-screen travel.
+
+This does not retime the underlying physics, only the visual animation.
 
 ## Tuning recipes
 

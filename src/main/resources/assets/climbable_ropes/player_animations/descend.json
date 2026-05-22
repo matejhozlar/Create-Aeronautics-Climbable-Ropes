@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "name": "descend",
+  "author": "saunhardy",
+  "description": "Low-amplitude descend loop with a slight forward lean for hanging rope strands and plunger ropes.",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 24,
+    "stopTick": 24,
+    "isLoop": true,
+    "returnTick": 0,
+    "degrees": true,
+    "easeBeforeKeyframe": false,
+    "moves": [
+      { "tick": 0,  "easing": "easeInOutSine", "rightArm": { "pitch": -150, "yaw":   8, "roll":   8 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftArm":  { "pitch": -110, "yaw":  -8, "roll":  -8 } },
+      { "tick": 0,  "easing": "easeInOutSine", "rightLeg": { "pitch":    8, "yaw":   0, "roll":   3 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftLeg":  { "pitch":   -8, "yaw":   0, "roll":  -3 } },
+      { "tick": 0,  "easing": "easeInOutSine", "body":     { "pitch":   10, "yaw":   1, "roll":   0 } },
+      { "tick": 0,  "easing": "easeInOutSine", "head":     { "pitch":   -5, "yaw":   0, "roll":   0 } },
+
+      { "tick": 12, "easing": "easeInOutSine", "rightArm": { "pitch": -110, "yaw":   8, "roll":   8 } },
+      { "tick": 12, "easing": "easeInOutSine", "leftArm":  { "pitch": -150, "yaw":  -8, "roll":  -8 } },
+      { "tick": 12, "easing": "easeInOutSine", "rightLeg": { "pitch":   -8, "yaw":   0, "roll":   3 } },
+      { "tick": 12, "easing": "easeInOutSine", "leftLeg":  { "pitch":    8, "yaw":   0, "roll":  -3 } },
+      { "tick": 12, "easing": "easeInOutSine", "body":     { "pitch":   10, "yaw":  -1, "roll":   0 } },
+      { "tick": 12, "easing": "easeInOutSine", "head":     { "pitch":   -5, "yaw":   0, "roll":   0 } },
+
+      { "tick": 24, "easing": "easeInOutSine", "rightArm": { "pitch": -150, "yaw":   8, "roll":   8 } },
+      { "tick": 24, "easing": "easeInOutSine", "leftArm":  { "pitch": -110, "yaw":  -8, "roll":  -8 } },
+      { "tick": 24, "easing": "easeInOutSine", "rightLeg": { "pitch":    8, "yaw":   0, "roll":   3 } },
+      { "tick": 24, "easing": "easeInOutSine", "leftLeg":  { "pitch":   -8, "yaw":   0, "roll":  -3 } },
+      { "tick": 24, "easing": "easeInOutSine", "body":     { "pitch":   10, "yaw":   1, "roll":   0 } },
+      { "tick": 24, "easing": "easeInOutSine", "head":     { "pitch":   -5, "yaw":   0, "roll":   0 } }
+    ]
+  }
+}

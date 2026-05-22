@@ -26,6 +26,9 @@ public final class ClimbableRopesConfig {
     public static final ModConfigSpec.IntValue BOTTOM_GROUNDED_DISMOUNT_TICKS;
     public static final ModConfigSpec.DoubleValue ROPE_HOVER_RADIUS;
 
+    public static final ModConfigSpec.BooleanValue ENABLE_CLIMB_ANIMATION;
+    public static final ModConfigSpec.DoubleValue ANIMATION_SPEED_MULTIPLIER;
+
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
 
@@ -94,6 +97,15 @@ public final class ClimbableRopesConfig {
         ROPE_HOVER_RADIUS = b
                 .comment("Raycast hitbox radius (in blocks) for rope hover detection. Larger values make ropes easier to aim at.")
                 .defineInRange("ropeHoverRadius", 4.0 / 16.0, 0.0, 2.0);
+        b.pop();
+
+        b.comment("Player climb animation playback (KosmX playerAnimator layer).").push("animation");
+        ENABLE_CLIMB_ANIMATION = b
+                .comment("Play the rope-climb animations on your local player while attached to a rope.")
+                .define("enableClimbAnimation", true);
+        ANIMATION_SPEED_MULTIPLIER = b
+                .comment("Playback speed multiplier for the climb animations. 1.0 is authored speed.")
+                .defineInRange("animationSpeedMultiplier", 1.0, 0.1, 5.0);
         b.pop();
 
         SPEC = b.build();

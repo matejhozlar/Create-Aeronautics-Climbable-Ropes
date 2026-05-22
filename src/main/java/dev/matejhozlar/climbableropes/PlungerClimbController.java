@@ -26,10 +26,12 @@ final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double PLUNGER_END_OFFSET = 0.6;
+    private static final double AT_END_ARC_EPSILON = 0.2;
 
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
     private static int bottomGroundedTimer;
+    private static boolean parkedAtBottom;
     private static double slideVelocity;
 
     private PlungerClimbController() {}
@@ -51,6 +53,7 @@ final class PlungerClimbController {
         backwardPlunger = null;
         forwardPlunger = null;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         slideVelocity = 0.0;
     }
 
@@ -128,10 +131,14 @@ final class PlungerClimbController {
 
         double remainingUp = Math.max(0.0, abLen - t);
         if (climbUp && remainingUp <= 0.0) climbUp = false;
+        // onGround and the arc test both flicker per tick, so they latch this rather than gating descent live.
+        if (climbUp) parkedAtBottom = false;
+        else if (t <= AT_END_ARC_EPSILON || player.onGround()) parkedAtBottom = true;
+        boolean descentBlocked = parkedAtBottom;
 
         double sinAngle = Math.abs(dir.y);
-        boolean slideEffective = climbDown && sprint && slideSpeed * sinAngle > descendSpeed;
-        if (climbUp) {
+        boolean slideEffective = climbDown && sprint && !descentBlocked && slideSpeed * sinAngle > descendSpeed;
+        if (climbUp || descentBlocked) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
@@ -142,10 +149,12 @@ final class PlungerClimbController {
 
         double speedAlong;
         if (climbUp) speedAlong = Math.min(climbSpeed, remainingUp);
+        else if (descentBlocked) speedAlong = 0.0;
         else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
         else if (climbDown) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
+        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, t);
         Vec3 climbVel = dir.scale(speedAlong);
 
         double snapPull = ClimbableRopesConfig.SNAP_PULL.get();
@@ -154,16 +163,23 @@ final class PlungerClimbController {
         double xVel = (target.x - anchor.x) * snapPull;
         double yVel = (target.y - anchor.y) * snapPull;
         double zVel = (target.z - anchor.z) * snapPull;
-        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > snapVelCap) {
-            double scale = snapVelCap / snapMag;
+        double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
+        if (horizMag > snapVelCap) {
+            double scale = snapVelCap / horizMag;
             xVel *= scale;
-            yVel *= scale;
             zVel *= scale;
         }
+        yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
+
+        ClimbAnimationController.ClimbState animState;
+        if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
+        else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
+        else if (speedAlong < 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else animState = ClimbAnimationController.ClimbState.IDLE;
+        ClimbAnimationController.onTick(dir, animState);
 
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), false));
@@ -193,6 +209,7 @@ final class PlungerClimbController {
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         slideVelocity = 0.0;
 
         player.getAbilities().flying = false;
@@ -206,6 +223,7 @@ final class PlungerClimbController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(forwardPlunger.getUUID(), false));
+        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.PLUNGER_ROPE);
     }
 
     private static boolean snapToEmbarkPoint(Minecraft mc, LocalPlayer player,
@@ -252,6 +270,7 @@ final class PlungerClimbController {
         reset();
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+        ClimbAnimationController.onDisembark();
     }
 
     static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {

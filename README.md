@@ -128,3 +128,12 @@ Toggling a feature off only blocks new embarkations; in-progress climbs finish n
 | `ropeHoverRadius` | `0.25` | Raycast hitbox radius (blocks) for rope hover detection. Larger values make ropes easier to aim at. |
 
 Defaults preserve the standard behavior; these affect physics feel and targeting, so change them with care.
+
+### `[animation]`
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `enableClimbAnimation` | `true` | Play the rope-climb body/arm/leg animations while attached to a rope. |
+| `animationSpeedMultiplier` | `1.0` | Playback-speed multiplier for the climb animations. `1.0` is the authored speed. |
+
+Animations are driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator), an MIT-licensed library. Climbable Ropes bundles it via jar-in-jar, so end users do not install it separately. If a standalone copy is also present, NeoForge deduplicates by version and loads whichever is newer.

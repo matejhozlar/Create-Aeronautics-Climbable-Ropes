@@ -11,6 +11,7 @@ import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -24,6 +25,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 import java.util.UUID;
 
@@ -32,10 +34,16 @@ public final class ClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     private static final double VERTICAL_BIAS = 0.5;
+    // How far past a strand endpoint the player may drift before being dismounted. The snap spring
+    // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
+    private static final double END_OVERSHOOT_LIMIT = 0.4;
+    private static final double AT_END_ARC_EPSILON = 0.2;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
     private static int bottomGroundedTimer = 0;
+    private static boolean parkedAtBottom = false;
+    private static double prevEndOvershoot = 0.0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
@@ -49,6 +57,8 @@ public final class ClimbController {
             climbingRope = null;
             forwardIsLast = true;
             bottomGroundedTimer = 0;
+            parkedAtBottom = false;
+            prevEndOvershoot = 0.0;
             prevUseDown = false;
             slideVelocity = 0.0;
             PlungerClimbController.reset();
@@ -72,6 +82,21 @@ public final class ClimbController {
         if (ZiplineClientManager.ridingRope != null) return;
 
         tryHoverEmbark(mc, player, justPressed);
+    }
+
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        // While climbing, the mod fully drives movement through setDeltaMovement. Vanilla walk input
+        // (faster with sprint) would otherwise leak through and let the player walk off the rope.
+        // The zipline mode is excluded: it intentionally rides on vanilla WASD movement.
+        if (climbingRope == null && !PlungerClimbController.isClimbing()) return;
+        Input input = event.getInput();
+        input.forwardImpulse = 0.0F;
+        input.leftImpulse = 0.0F;
+        input.up = false;
+        input.down = false;
+        input.left = false;
+        input.right = false;
     }
 
     private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
@@ -178,6 +203,8 @@ public final class ClimbController {
         leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
+        prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
         forwardIsLast = computeForwardIsLast(mc, player, rope);
 
@@ -194,6 +221,7 @@ public final class ClimbController {
         mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
 
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(rope, false));
+        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.HANGING_STRAND);
     }
 
     private static void snapToEmbarkPoint(Minecraft mc, LocalPlayer player, UUID rope) {
@@ -244,10 +272,13 @@ public final class ClimbController {
         climbingRope = null;
         forwardIsLast = true;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
+        prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
 
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
+        ClimbAnimationController.onDisembark();
     }
 
     static void leaveActiveRides() {
@@ -339,6 +370,10 @@ public final class ClimbController {
         }
 
         if (climbUp && arcRemainingForward <= 0.0) climbUp = false;
+        // onGround and the arc test both flicker per tick, so they latch this rather than gating descent live.
+        if (climbUp) parkedAtBottom = false;
+        else if (arcRemainingBackward <= AT_END_ARC_EPSILON || player.onGround()) parkedAtBottom = true;
+        boolean descentBlocked = parkedAtBottom;
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
         double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
@@ -347,8 +382,9 @@ public final class ClimbController {
         double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
         double verticalComponent = Math.abs(forwardAlongStrand.y);
-        boolean slideEffective = climbDown && sprint && slideSpeed * verticalComponent > descendSpeed;
-        if (climbUp) {
+        boolean slideEffective = climbDown && sprint && !descentBlocked
+                && slideSpeed * verticalComponent > descendSpeed;
+        if (climbUp || descentBlocked) {
             slideVelocity = 0.0;
         } else if (slideEffective) {
             if (slideVelocity < descendSpeed) slideVelocity = descendSpeed;
@@ -359,14 +395,18 @@ public final class ClimbController {
 
         double speedAlong;
         if (climbUp) speedAlong = Math.min(climbSpeed, arcRemainingForward);
+        else if (descentBlocked) speedAlong = 0.0;
         else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
         else if (climbDown) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
+        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, arcRemainingBackward);
 
-        if (speedAlong < 0 && arcRemainingBackward <= 1.0E-3) {
-            speedAlong = 0.0;
-            slideVelocity = 0.0;
+        boolean overshootGrowing = sq.endOvershoot >= prevEndOvershoot;
+        prevEndOvershoot = sq.endOvershoot;
+        if (speedAlong == 0.0 && overshootGrowing && sq.endOvershoot > END_OVERSHOOT_LIMIT) {
+            disembark();
+            return;
         }
 
         Vec3 climbVel = forwardAlongStrand.scale(speedAlong);
@@ -380,16 +420,28 @@ public final class ClimbController {
         double xVel = dx * snapPull;
         double yVel = dy * snapPull;
         double zVel = dz * snapPull;
-        double snapMag = Math.sqrt(xVel * xVel + yVel * yVel + zVel * zVel);
-        if (snapMag > snapVelCap) {
-            double scale = snapVelCap / snapMag;
+        double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
+        if (horizMag > snapVelCap) {
+            double scale = snapVelCap / horizMag;
             xVel *= scale;
-            yVel *= scale;
             zVel *= scale;
         }
+        yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
         player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
         player.fallDistance = 0.0F;
+
+        ClimbAnimationController.ClimbState animState;
+        if (climbUp) animState = ClimbAnimationController.ClimbState.CLIMB_UP;
+        else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
+        else if (speedAlong < 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
+        else animState = ClimbAnimationController.ClimbState.IDLE;
+        // The endpoint-to-endpoint chord, not a local segment, keeps the verticality gate from flickering.
+        Vec3 ropeChord = forwardIsLast
+                ? lastPoint.subtract(firstPoint)
+                : firstPoint.subtract(lastPoint);
+        Vec3 animForward = ropeChord.lengthSqr() > 1.0e-8 ? ropeChord.normalize() : forwardAlongStrand;
+        ClimbAnimationController.onTick(animForward, animState);
 
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, false));
@@ -412,19 +464,24 @@ public final class ClimbController {
 
     private static StrandQuery findClosestSegment(ClientRopeStrand strand, Vec3 target) {
         var points = strand.getPoints();
+        int segCount = points.size() - 1;
         double minDistSq = Double.MAX_VALUE;
         Vec3 minPoint = Vec3.ZERO;
         Vec3 minTangent = new Vec3(0.0, 1.0, 0.0);
         double minArc = 0.0;
+        double minRaw = 0.0;
+        double minSegLen = 0.0;
+        int minSegIndex = -1;
         double cumulative = 0.0;
-        for (int i = 0; i < points.size() - 1; i++) {
+        for (int i = 0; i < segCount; i++) {
             Vec3 a = JOMLConversion.toMojang(points.get(i).position());
             Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
             Vec3 ab = b.subtract(a);
             double abLen = ab.length();
             if (abLen >= 1e-6) {
                 Vec3 dir = ab.scale(1.0 / abLen);
-                double along = Math.max(0.0, Math.min(abLen, target.subtract(a).dot(dir)));
+                double raw = target.subtract(a).dot(dir);
+                double along = Math.max(0.0, Math.min(abLen, raw));
                 Vec3 onSeg = a.add(dir.scale(along));
                 double distSq = onSeg.distanceToSqr(target);
                 if (distSq < minDistSq) {
@@ -432,11 +489,20 @@ public final class ClimbController {
                     minPoint = onSeg;
                     minTangent = dir;
                     minArc = cumulative + along;
+                    minRaw = raw;
+                    minSegLen = abLen;
+                    minSegIndex = i;
                 }
             }
             cumulative += abLen;
         }
-        return new StrandQuery(minPoint, minTangent, minArc, minDistSq);
+        double endOvershoot = 0.0;
+        if (minSegIndex == 0 && minRaw < 0.0) {
+            endOvershoot = -minRaw;
+        } else if (minSegIndex == segCount - 1 && minRaw > minSegLen) {
+            endOvershoot = minRaw - minSegLen;
+        }
+        return new StrandQuery(minPoint, minTangent, minArc, minDistSq, endOvershoot);
     }
 
     private static double totalArcLength(ClientRopeStrand strand) {
@@ -450,7 +516,8 @@ public final class ClimbController {
         return s;
     }
 
-    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr) {}
+    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr,
+                               double endOvershoot) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();

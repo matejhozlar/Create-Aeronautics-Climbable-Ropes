@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "name": "idle",
+  "author": "saunhardy",
+  "description": "Casual one-handed hang: weight off the gripping arm, free limbs dangling with a slow lazy pendulum sway.",
+  "emote": {
+    "beginTick": 0,
+    "endTick": 80,
+    "stopTick": 80,
+    "isLoop": true,
+    "returnTick": 0,
+    "degrees": true,
+    "easeBeforeKeyframe": false,
+    "moves": [
+      { "tick": 0,  "easing": "easeInOutSine", "rightArm": { "pitch": -157, "yaw": 0, "roll":  11 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftArm":  { "pitch":  -26, "yaw": 0, "roll": -16 } },
+      { "tick": 0,  "easing": "easeInOutSine", "rightLeg": { "pitch":   15, "yaw": 0, "roll":   5 } },
+      { "tick": 0,  "easing": "easeInOutSine", "leftLeg":  { "pitch":   -7, "yaw": 0, "roll":   1 } },
+      { "tick": 0,  "easing": "easeInOutSine", "body":     { "pitch":    4, "yaw": 0, "roll":   9 } },
+      { "tick": 0,  "easing": "easeInOutSine", "head":     { "pitch":    7, "yaw": -7, "roll": -4 } },
+
+      { "tick": 40, "easing": "easeInOutSine", "rightArm": { "pitch": -153, "yaw": 0, "roll":  13 } },
+      { "tick": 40, "easing": "easeInOutSine", "leftArm":  { "pitch":  -34, "yaw": 0, "roll":  -9 } },
+      { "tick": 40, "easing": "easeInOutSine", "rightLeg": { "pitch":    5, "yaw": 0, "roll":   1 } },
+      { "tick": 40, "easing": "easeInOutSine", "leftLeg":  { "pitch":   13, "yaw": 0, "roll":   6 } },
+      { "tick": 40, "easing": "easeInOutSine", "body":     { "pitch":    6, "yaw": 0, "roll":   6 } },
+      { "tick": 40, "easing": "easeInOutSine", "head":     { "pitch":    4, "yaw":  7, "roll":  0 } },
+
+      { "tick": 80, "easing": "easeInOutSine", "rightArm": { "pitch": -157, "yaw": 0, "roll":  11 } },
+      { "tick": 80, "easing": "easeInOutSine", "leftArm":  { "pitch":  -26, "yaw": 0, "roll": -16 } },
+      { "tick": 80, "easing": "easeInOutSine", "rightLeg": { "pitch":   15, "yaw": 0, "roll":   5 } },
+      { "tick": 80, "easing": "easeInOutSine", "leftLeg":  { "pitch":   -7, "yaw": 0, "roll":   1 } },
+      { "tick": 80, "easing": "easeInOutSine", "body":     { "pitch":    4, "yaw": 0, "roll":   9 } },
+      { "tick": 80, "easing": "easeInOutSine", "head":     { "pitch":    7, "yaw": -7, "roll": -4 } }
+    ]
+  }
+}

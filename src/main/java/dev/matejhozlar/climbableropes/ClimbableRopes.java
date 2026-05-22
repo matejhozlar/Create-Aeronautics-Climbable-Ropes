@@ -1,5 +1,6 @@
 package dev.matejhozlar.climbableropes;
 
+import dev.matejhozlar.climbableropes.network.ClimbableRopesNetwork;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -11,5 +12,6 @@ public class ClimbableRopes {
 
     public ClimbableRopes(IEventBus modEventBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.SERVER, ClimbableRopesConfig.SPEC);
+        ClimbableRopesNetwork.init();
     }
 }
