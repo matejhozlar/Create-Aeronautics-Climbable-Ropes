@@ -26,12 +26,12 @@ final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double VERTICAL_BIAS = 0.5;
     private static final double PLUNGER_END_OFFSET = 0.6;
-    // Arc slack for treating a rope endpoint as reached; absorbs the snap spring's sub-tick jitter.
-    private static final double AT_END_ARC_EPSILON = 0.05;
+    private static final double AT_END_ARC_EPSILON = 0.2;
 
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
     private static int bottomGroundedTimer;
+    private static boolean parkedAtBottom;
     private static double slideVelocity;
 
     private PlungerClimbController() {}
@@ -53,6 +53,7 @@ final class PlungerClimbController {
         backwardPlunger = null;
         forwardPlunger = null;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         slideVelocity = 0.0;
     }
 
@@ -112,9 +113,7 @@ final class PlungerClimbController {
         }
 
         Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
-        // Feet, not the climb anchor: the anchor sits ~2.3 blocks up, so a rope ending near the
-        // ground would never register as "at the bottom" for the grounded dismount.
-        boolean nearBottom = player.getY() < lowerEnd.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get();
+        boolean nearBottom = anchor.y < lowerEnd.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get();
         if (player.onGround() && !climbUp && nearBottom) {
             if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
@@ -132,9 +131,10 @@ final class PlungerClimbController {
 
         double remainingUp = Math.max(0.0, abLen - t);
         if (climbUp && remainingUp <= 0.0) climbUp = false;
-        // A grounded player can't descend further; the descent's horizontal pull would otherwise
-        // drag them off an angled rope's lower end across the ground.
-        boolean descentBlocked = t <= AT_END_ARC_EPSILON || player.onGround();
+        // onGround and the arc test both flicker per tick, so they latch this rather than gating descent live.
+        if (climbUp) parkedAtBottom = false;
+        else if (t <= AT_END_ARC_EPSILON || player.onGround()) parkedAtBottom = true;
+        boolean descentBlocked = parkedAtBottom;
 
         double sinAngle = Math.abs(dir.y);
         boolean slideEffective = climbDown && sprint && !descentBlocked && slideSpeed * sinAngle > descendSpeed;
@@ -163,8 +163,6 @@ final class PlungerClimbController {
         double xVel = (target.x - anchor.x) * snapPull;
         double yVel = (target.y - anchor.y) * snapPull;
         double zVel = (target.z - anchor.z) * snapPull;
-        // Cap horizontal and vertical pull separately: a large vertical correction (player grounded
-        // far below a near-horizontal rope) must not starve the horizontal hold that keeps them on.
         double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
         if (horizMag > snapVelCap) {
             double scale = snapVelCap / horizMag;
@@ -211,6 +209,7 @@ final class PlungerClimbController {
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         slideVelocity = 0.0;
 
         player.getAbilities().flying = false;
@@ -234,10 +233,10 @@ final class PlungerClimbController {
         Vec3 ropePoint = posA.add(dirAB.scale(t));
 
         Vec3 lowerEnd = posA.y < posB.y ? posA : posB;
-        boolean descentBlocked = ropePoint.distanceToSqr(lowerEnd) < 1.0;
+        boolean atBottom = ropePoint.distanceToSqr(lowerEnd) < 1.0;
 
         double targetY;
-        if (descentBlocked) {
+        if (atBottom) {
             ropePoint = lowerEnd;
             targetY = lowerEnd.y;
         } else {

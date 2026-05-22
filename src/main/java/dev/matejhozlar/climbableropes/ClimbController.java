@@ -37,12 +37,12 @@ public final class ClimbController {
     // How far past a strand endpoint the player may drift before being dismounted. The snap spring
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
     private static final double END_OVERSHOOT_LIMIT = 0.4;
-    // Arc slack for treating a strand endpoint as reached; absorbs the snap spring's sub-tick jitter.
-    private static final double AT_END_ARC_EPSILON = 0.05;
+    private static final double AT_END_ARC_EPSILON = 0.2;
 
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
     private static int bottomGroundedTimer = 0;
+    private static boolean parkedAtBottom = false;
     private static double prevEndOvershoot = 0.0;
     private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
@@ -57,6 +57,7 @@ public final class ClimbController {
             climbingRope = null;
             forwardIsLast = true;
             bottomGroundedTimer = 0;
+            parkedAtBottom = false;
             prevEndOvershoot = 0.0;
             prevUseDown = false;
             slideVelocity = 0.0;
@@ -202,6 +203,7 @@ public final class ClimbController {
         leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
         forwardIsLast = computeForwardIsLast(mc, player, rope);
@@ -233,11 +235,11 @@ public final class ClimbController {
         Vec3 first = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 last = JOMLConversion.toMojang(strand.getPoints().getLast().position());
         Vec3 bottom = first.y < last.y ? first : last;
-        boolean descentBlocked = clickPoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
+        boolean atBottom = clickPoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
 
         double targetY;
         Vec3 ropePoint;
-        if (descentBlocked) {
+        if (atBottom) {
             ropePoint = bottom;
             targetY = bottom.y;
         } else {
@@ -270,6 +272,7 @@ public final class ClimbController {
         climbingRope = null;
         forwardIsLast = true;
         bottomGroundedTimer = 0;
+        parkedAtBottom = false;
         prevEndOvershoot = 0.0;
         slideVelocity = 0.0;
 
@@ -356,10 +359,8 @@ public final class ClimbController {
             return;
         }
 
-        // Feet, not the climb anchor: the anchor sits ~2.3 blocks up, so a rope ending near the
-        // ground would never register as "at the bottom" for the grounded dismount.
         if (player.onGround() && !climbUp
-                && player.getY() < bottomPoint.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
+                && anchor.y < bottomPoint.y + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
             if (++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()) {
                 disembark();
                 return;
@@ -369,9 +370,10 @@ public final class ClimbController {
         }
 
         if (climbUp && arcRemainingForward <= 0.0) climbUp = false;
-        // A grounded player can't descend further; the descent's horizontal pull would otherwise
-        // drag them off an angled rope's lower end across the ground.
-        boolean descentBlocked = arcRemainingBackward <= AT_END_ARC_EPSILON || player.onGround();
+        // onGround and the arc test both flicker per tick, so they latch this rather than gating descent live.
+        if (climbUp) parkedAtBottom = false;
+        else if (arcRemainingBackward <= AT_END_ARC_EPSILON || player.onGround()) parkedAtBottom = true;
+        boolean descentBlocked = parkedAtBottom;
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
         double descendSpeed = ClimbableRopesConfig.DESCEND_SPEED.get();
@@ -400,8 +402,6 @@ public final class ClimbController {
         else speedAlong = 0.0;
         if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, arcRemainingBackward);
 
-        // The mod clamps its own descent at the endpoints, so a growing overshoot means an external
-        // force is pushing the player past a strand end; dismount once it passes the limit.
         boolean overshootGrowing = sq.endOvershoot >= prevEndOvershoot;
         prevEndOvershoot = sq.endOvershoot;
         if (speedAlong == 0.0 && overshootGrowing && sq.endOvershoot > END_OVERSHOOT_LIMIT) {
@@ -420,8 +420,6 @@ public final class ClimbController {
         double xVel = dx * snapPull;
         double yVel = dy * snapPull;
         double zVel = dz * snapPull;
-        // Cap horizontal and vertical pull separately: a large vertical correction (player grounded
-        // far below a near-horizontal rope) must not starve the horizontal hold that keeps them on.
         double horizMag = Math.sqrt(xVel * xVel + zVel * zVel);
         if (horizMag > snapVelCap) {
             double scale = snapVelCap / horizMag;
@@ -438,7 +436,12 @@ public final class ClimbController {
         else if (slideVelocity > descendSpeed) animState = ClimbAnimationController.ClimbState.SLIDE;
         else if (speedAlong < 0.0) animState = ClimbAnimationController.ClimbState.DESCEND;
         else animState = ClimbAnimationController.ClimbState.IDLE;
-        ClimbAnimationController.onTick(forwardAlongStrand, animState);
+        // The endpoint-to-endpoint chord, not a local segment, keeps the verticality gate from flickering.
+        Vec3 ropeChord = forwardIsLast
+                ? lastPoint.subtract(firstPoint)
+                : firstPoint.subtract(lastPoint);
+        Vec3 animForward = ropeChord.lengthSqr() > 1.0e-8 ? ropeChord.normalize() : forwardAlongStrand;
+        ClimbAnimationController.onTick(animForward, animState);
 
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, false));
