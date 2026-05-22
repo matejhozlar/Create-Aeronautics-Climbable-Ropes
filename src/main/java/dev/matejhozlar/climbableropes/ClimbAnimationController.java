@@ -70,6 +70,7 @@ public final class ClimbAnimationController {
 
     public static void onTick(Vec3 tangent, ClimbState state) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) {
+            if (currentAnimId != null) sendSync(null, null);
             removeLayer();
             return;
         }
