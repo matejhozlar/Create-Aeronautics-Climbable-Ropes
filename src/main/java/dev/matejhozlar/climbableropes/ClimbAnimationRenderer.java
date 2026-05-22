@@ -8,11 +8,14 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 import org.joml.Quaternionf;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
@@ -21,13 +24,12 @@ public final class ClimbAnimationRenderer {
     private static final double ALIGN_SMOOTHING = 0.2;
 
     private static final Map<UUID, Vec3> ALIGNED_UP = new HashMap<>();
-    private static boolean transformed;
+    private static final Set<UUID> TRANSFORMED = new HashSet<>();
 
     private ClimbAnimationRenderer() {}
 
     @SubscribeEvent
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
-        transformed = false;
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) return;
 
         Player entity = event.getEntity();
@@ -61,15 +63,26 @@ public final class ClimbAnimationRenderer {
                 0.0f, 1.0f, 0.0f,
                 (float) aligned.x, (float) aligned.y, (float) aligned.z));
         pose.translate(0.0, -pivotY, 0.0);
-        transformed = true;
+        TRANSFORMED.add(id);
     }
 
     @SubscribeEvent
     public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
-        if (transformed) {
+        if (TRANSFORMED.remove(event.getEntity().getUUID())) {
             event.getPoseStack().popPose();
-            transformed = false;
         }
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            ALIGNED_UP.clear();
+            TRANSFORMED.clear();
+            return;
+        }
+        ALIGNED_UP.keySet().removeIf(id -> mc.level.getPlayerByUUID(id) == null);
+        TRANSFORMED.removeIf(id -> mc.level.getPlayerByUUID(id) == null);
     }
 
     private static Vec3 tangentFor(Player entity) {

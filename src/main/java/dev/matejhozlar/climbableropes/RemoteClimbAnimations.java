@@ -94,6 +94,9 @@ public final class RemoteClimbAnimations {
                 it.remove();
             } else if (entry.currentAnimId != null && now - entry.lastUpdate > STALE_TICKS) {
                 entry.fadeOut();
+            } else if (entry.currentAnimId == null && now - entry.lastUpdate > STALE_TICKS + FADE_TICKS) {
+                entry.detach();
+                it.remove();
             }
         }
     }
