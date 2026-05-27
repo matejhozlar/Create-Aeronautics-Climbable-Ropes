@@ -33,7 +33,8 @@ import java.util.UUID;
 public final class ClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
-    private static final double VERTICAL_BIAS = 0.5;
+    // Below this |y| threshold the rope is treated as horizontal (look-based forward).
+    private static final double NEAR_HORIZONTAL_EPS = 0.05;
     // How far past a strand endpoint the player may drift before being dismounted. The snap spring
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
     private static final double END_OVERSHOOT_LIMIT = 0.4;
@@ -296,7 +297,7 @@ public final class ClimbController {
         double chordLen = chord.length();
         if (chordLen < 1.0E-4) return true;
         Vec3 chordDir = chord.scale(1.0 / chordLen);
-        if (Math.abs(chordDir.y) > VERTICAL_BIAS) return last.y > first.y;
+        if (Math.abs(chordDir.y) > NEAR_HORIZONTAL_EPS) return last.y > first.y;
         return player.getLookAngle().dot(chordDir) >= 0;
     }
 

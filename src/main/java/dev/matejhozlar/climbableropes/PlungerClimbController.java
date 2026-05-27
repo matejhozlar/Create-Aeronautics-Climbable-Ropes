@@ -24,7 +24,8 @@ import java.util.Set;
 
 final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    private static final double VERTICAL_BIAS = 0.5;
+    // Below this |y| threshold the rope is treated as horizontal (look-based forward).
+    private static final double NEAR_HORIZONTAL_EPS = 0.05;
     private static final double PLUNGER_END_OFFSET = 0.6;
     private static final double AT_END_ARC_EPSILON = 0.2;
 
@@ -196,7 +197,7 @@ final class PlungerClimbController {
         Vec3 dirAB = ab.scale(1.0 / abLen);
 
         boolean forwardIsB;
-        if (Math.abs(dirAB.y) > VERTICAL_BIAS) {
+        if (Math.abs(dirAB.y) > NEAR_HORIZONTAL_EPS) {
             forwardIsB = posB.y > posA.y;
         } else {
             forwardIsB = player.getLookAngle().dot(dirAB) >= 0;
