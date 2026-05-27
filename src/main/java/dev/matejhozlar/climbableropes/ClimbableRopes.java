@@ -11,7 +11,7 @@ public class ClimbableRopes {
     public static final String MODID = "climbable_ropes";
 
     public ClimbableRopes(IEventBus modEventBus, ModContainer container) {
-        container.registerConfig(ModConfig.Type.SERVER, ClimbableRopesConfig.SPEC);
+        container.registerConfig(ModConfig.Type.SERVER, ClimbableRopesConfig.SERVER_SPEC);
         ClimbableRopesNetwork.init();
     }
 }

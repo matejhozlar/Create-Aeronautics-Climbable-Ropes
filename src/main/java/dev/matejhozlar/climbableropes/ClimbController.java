@@ -142,21 +142,19 @@ public final class ClimbController {
                 : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation())
                         .distanceToSqr(eye);
 
-        UUID found = raycastAnyRope(mgr, eye, look, maxRange, bestDistSqr);
-        if (found == null) return null;
+        HoverHit hit = raycastAnyRope(mgr, eye, look, maxRange, bestDistSqr);
+        if (hit == null) return null;
 
-        ClientRopeStrand strand = mgr.getStrand(found);
-        if (strand == null) return null;
-
-        ZiplineClientManager.ClosestQuery query =
-                ZiplineClientManager.getClosestPointOnStrand(strand, player);
         double minVerticalDot = Math.cos(Math.toRadians(ClimbableRopesConfig.MAX_CLIMB_ANGLE_FROM_VERTICAL.get()));
-        return Math.abs(query.normal().y) >= minVerticalDot ? found : null;
+        return Math.abs(hit.tangent().y) >= minVerticalDot ? hit.strand() : null;
     }
 
-    private static UUID raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
-                                       double maxRange, double bestDistSqr) {
+    private record HoverHit(UUID strand, Vec3 tangent) {}
+
+    private static HoverHit raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
+                                           double maxRange, double bestDistSqr) {
         UUID best = null;
+        Vec3 bestTangent = null;
         double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
         double radiusSqr = radius * radius;
         for (ClientRopeStrand strand : mgr.getAllStrands()) {
@@ -193,9 +191,10 @@ public final class ClimbController {
                 if (hitDistSqr > bestDistSqr) continue;
                 bestDistSqr = hitDistSqr;
                 best = strand.getUuid();
+                bestTangent = segUnit;
             }
         }
-        return best;
+        return best == null ? null : new HoverHit(best, bestTangent);
     }
 
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
