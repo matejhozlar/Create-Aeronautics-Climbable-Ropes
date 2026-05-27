@@ -190,6 +190,7 @@ idea {
 publishMods {
     file = tasks.jar.archiveFile
     changelog = providers.fileContents(layout.projectDirectory.file("CHANGELOG.md")).asText
+    displayName = "[${mod_version}] Climbable Ropes"
     type = STABLE
     modLoaders.add("neoforge")
 
@@ -208,6 +209,8 @@ publishMods {
         minecraftVersions.add(minecraft_version)
     }
 
+    // GITHUB_SHA is set by GitHub Actions runners; publishGithub is only invoked
+    // from .github/workflows/publish.yml, so the env var is always present there.
     github {
         repository = "matejhozlar/Create-Aeronautics-Climbable-Ropes"
         accessToken = providers.environmentVariable("GITHUB_TOKEN")
