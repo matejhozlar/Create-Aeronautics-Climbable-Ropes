@@ -12,11 +12,9 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 
 final class PlungerZiplineController {
-    private static final int GROUNDED_DISMOUNT_TICKS = 5;
     private static final double EXIT_DOT_THRESHOLD = 0.6;
     private static final double END_PROXIMITY = 0.5;
     private static final double DAMPING = -0.6;
@@ -75,7 +73,7 @@ final class PlungerZiplineController {
         if (player.onGround()) groundedTimer++;
         else groundedTimer = 0;
 
-        if (groundedTimer > GROUNDED_DISMOUNT_TICKS
+        if (groundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()
                 || player.isShiftKeyDown()
                 || player.getAbilities().flying) {
             disembark();
@@ -109,8 +107,8 @@ final class PlungerZiplineController {
         }
 
         Vec3 diff = ropeWorld.subtract(anchor);
-        double reach = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
-        if (diff.lengthSqr() > reach * reach) {
+        double maxLeash = ClimbableRopesConfig.MAX_LEASH_DISTANCE.get();
+        if (diff.lengthSqr() > maxLeash * maxLeash) {
             disembark();
             return;
         }
