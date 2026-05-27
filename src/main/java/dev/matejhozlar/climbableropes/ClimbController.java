@@ -33,9 +33,7 @@ import java.util.UUID;
 public final class ClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
-    // Rope chords with |y| above this are treated as having a meaningful slope, so the forward
-    // direction is forced uphill (W = up, S = down) regardless of look. Below this, the chord
-    // is effectively horizontal and look-based forward is used for traversal.
+    // Below this |y| threshold the rope is treated as horizontal (look-based forward).
     private static final double NEAR_HORIZONTAL_EPS = 0.05;
     // How far past a strand endpoint the player may drift before being dismounted. The snap spring
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.

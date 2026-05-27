@@ -24,8 +24,7 @@ import java.util.Set;
 
 final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    // Same intent as ClimbController.NEAR_HORIZONTAL_EPS: chords flatter than this fall back to
-    // look-based forward; anything sloped binds W = up and S = down.
+    // Below this |y| threshold the rope is treated as horizontal (look-based forward).
     private static final double NEAR_HORIZONTAL_EPS = 0.05;
     private static final double PLUNGER_END_OFFSET = 0.6;
     private static final double AT_END_ARC_EPSILON = 0.2;
