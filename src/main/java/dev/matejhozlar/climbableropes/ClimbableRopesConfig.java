@@ -3,7 +3,8 @@ package dev.matejhozlar.climbableropes;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class ClimbableRopesConfig {
-    public static final ModConfigSpec SPEC;
+    public static final ModConfigSpec SERVER_SPEC;
+    public static final ModConfigSpec CLIENT_SPEC;
 
     public static final ModConfigSpec.DoubleValue CLIMB_SPEED;
     public static final ModConfigSpec.DoubleValue DESCEND_SPEED;
@@ -31,6 +32,7 @@ public final class ClimbableRopesConfig {
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
+        ModConfigSpec.Builder c = new ModConfigSpec.Builder();
 
         b.comment("Climbing motion (blocks per tick).").push("climbing");
         CLIMB_SPEED = b
@@ -99,16 +101,17 @@ public final class ClimbableRopesConfig {
                 .defineInRange("ropeHoverRadius", 4.0 / 16.0, 0.0, 2.0);
         b.pop();
 
-        b.comment("Player climb animation playback (KosmX playerAnimator layer).").push("animation");
-        ENABLE_CLIMB_ANIMATION = b
+        c.comment("Player climb animation playback (KosmX playerAnimator layer).").push("animation");
+        ENABLE_CLIMB_ANIMATION = c
                 .comment("Play the rope-climb animations on your local player while attached to a rope.")
                 .define("enableClimbAnimation", true);
-        ANIMATION_SPEED_MULTIPLIER = b
+        ANIMATION_SPEED_MULTIPLIER = c
                 .comment("Playback speed multiplier for the climb animations. 1.0 is authored speed.")
                 .defineInRange("animationSpeedMultiplier", 1.0, 0.1, 5.0);
-        b.pop();
+        c.pop();
 
-        SPEC = b.build();
+        SERVER_SPEC = b.build();
+        CLIENT_SPEC = c.build();
     }
 
     private ClimbableRopesConfig() {}
