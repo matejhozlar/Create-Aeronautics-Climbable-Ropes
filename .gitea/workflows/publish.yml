@@ -22,10 +22,6 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
-      - name: Get version
-        id: version
-        run: echo "value=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)" >> "$GITHUB_OUTPUT"
-
       - name: Build Simulated jar
         run: |
           git clone --depth 1 https://github.com/Creators-of-Aeronautics/Simulated-Project.git ../Simulated-Project
@@ -35,32 +31,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Publish to CurseForge
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          version: ${{ steps.version.outputs.value }}
-          version-type: release
-          name: "[${{ steps.version.outputs.value }}] create-aeronautics-climbable-ropes"
-          changelog-file: CHANGELOG.md
-          loaders: neoforge
-          game-versions: 1.21.1
-          files: build/libs/!(*-@(dev|sources|javadoc)).jar
-          java: 21
-
-          curseforge-id: 1528764
-          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-
-      - name: Publish to Modrinth
-        uses: Kir-Antipov/mc-publish@v3.3
-        with:
-          version: ${{ steps.version.outputs.value }}
-          version-type: release
-          name: "[${{ steps.version.outputs.value }}] create-aeronautics-climbable-ropes"
-          changelog-file: CHANGELOG.md
-          loaders: neoforge
-          game-versions: 1.21.1
-          files: build/libs/!(*-@(dev|sources|javadoc)).jar
-          java: 21
-
-          modrinth-id: jImqv1M5
-          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+      - name: Publish
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: ./gradlew publishCurseforge publishModrinth
