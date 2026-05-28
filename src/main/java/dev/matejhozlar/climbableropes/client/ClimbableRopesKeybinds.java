@@ -1,4 +1,4 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
@@ -21,13 +21,13 @@ public final class ClimbableRopesKeybinds {
         event.register(LOCK_ROPE_CAMERA);
     }
 
-    static void update(LocalPlayer player) {
+    public static void update(LocalPlayer player) {
         if (!LOCK_ROPE_CAMERA.isDown()) {
             lockedYaw = player.getYRot();
         }
     }
 
-    static float climbYaw() {
+    public static float climbYaw() {
         return lockedYaw;
     }
 }

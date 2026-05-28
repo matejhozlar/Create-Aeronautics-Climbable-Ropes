@@ -1,6 +1,7 @@
 package dev.matejhozlar.climbableropes;
 
 import com.simibubi.create.AllTags;
+import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
 import dev.simulated_team.simulated.network.packets.RopeRidingPacket;

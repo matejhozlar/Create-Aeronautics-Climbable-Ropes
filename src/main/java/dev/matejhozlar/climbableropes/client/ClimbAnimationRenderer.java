@@ -1,6 +1,8 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.matejhozlar.climbableropes.ClimbableRopes;
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;

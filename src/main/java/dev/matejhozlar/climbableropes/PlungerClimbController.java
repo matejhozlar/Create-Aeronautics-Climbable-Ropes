@@ -1,5 +1,7 @@
 package dev.matejhozlar.climbableropes;
 
+import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
+import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;

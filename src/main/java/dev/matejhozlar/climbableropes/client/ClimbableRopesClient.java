@@ -1,5 +1,7 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client;
 
+import dev.matejhozlar.climbableropes.ClimbableRopes;
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;

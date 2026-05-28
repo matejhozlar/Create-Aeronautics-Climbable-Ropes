@@ -1,6 +1,8 @@
 package dev.matejhozlar.climbableropes;
 
 import com.simibubi.create.AllTags;
+import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
+import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
