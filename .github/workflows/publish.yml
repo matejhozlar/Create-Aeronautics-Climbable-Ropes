@@ -37,6 +37,10 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Get version
+        id: version
+        run: echo "value=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
+
       - name: Build Simulated jar
         run: |
           git clone --depth 1 https://github.com/Creators-of-Aeronautics/Simulated-Project.git ../Simulated-Project
@@ -46,18 +50,49 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Publish
-        env:
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tasks=()
-          [ "${{ inputs.publish_curseforge }}" = "true" ] && tasks+=("publishCurseforge")
-          [ "${{ inputs.publish_modrinth }}" = "true" ] && tasks+=("publishModrinth")
-          [ "${{ inputs.publish_github_release }}" = "true" ] && tasks+=("publishGithub")
-          if [ ${#tasks[@]} -eq 0 ]; then
-            echo "No publish targets selected; skipping."
-            exit 0
-          fi
-          ./gradlew "${tasks[@]}"
+      - name: Publish to CurseForge
+        if: ${{ inputs.publish_curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          version: ${{ steps.version.outputs.value }}
+          version-type: release
+          name: "[${{ steps.version.outputs.value }}] Climbable Ropes"
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          files: build/libs/!(*-@(dev|sources|javadoc)).jar
+          java: 21
+
+          curseforge-id: 1528764
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Publish to Modrinth
+        if: ${{ inputs.publish_modrinth }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          version: ${{ steps.version.outputs.value }}
+          version-type: release
+          name: "[${{ steps.version.outputs.value }}] Climbable Ropes"
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          files: build/libs/!(*-@(dev|sources|javadoc)).jar
+          java: 21
+
+          modrinth-id: jImqv1M5
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+      - name: Create GitHub Release
+        if: ${{ inputs.publish_github_release }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          version: ${{ steps.version.outputs.value }}
+          version-type: release
+          name: "[${{ steps.version.outputs.value }}] Climbable Ropes"
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: 1.21.1
+          files: build/libs/!(*-@(dev|sources|javadoc)).jar
+          java: 21
+
+          github-token: ${{ secrets.GITHUB_TOKEN }}

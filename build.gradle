@@ -2,7 +2,6 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.141'
-    id 'me.modmuss50.mod-publish-plugin' version '2.0.0-beta.2'
     id 'idea'
 }
 
@@ -184,36 +183,5 @@ idea {
     module {
         downloadSources = true
         downloadJavadoc = true
-    }
-}
-
-publishMods {
-    file = tasks.jar.archiveFile
-    changelog = providers.fileContents(layout.projectDirectory.file("CHANGELOG.md")).asText
-    displayName = "[${mod_version}] Climbable Ropes"
-    type = STABLE
-    modLoaders.add("neoforge")
-
-    curseforge {
-        projectId = "1528764"
-        projectSlug = "create-aeronautics-climbable-ropes"
-        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
-        minecraftVersions.add(minecraft_version)
-        client = true
-        server = true
-    }
-
-    modrinth {
-        projectId = "jImqv1M5"
-        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
-        minecraftVersions.add(minecraft_version)
-    }
-
-    // GITHUB_SHA is set by GitHub Actions runners; publishGithub is only invoked
-    // from .github/workflows/publish.yml, so the env var is always present there.
-    github {
-        repository = "matejhozlar/Create-Aeronautics-Climbable-Ropes"
-        accessToken = providers.environmentVariable("GITHUB_TOKEN")
-        commitish = providers.environmentVariable("GITHUB_SHA")
     }
 }
