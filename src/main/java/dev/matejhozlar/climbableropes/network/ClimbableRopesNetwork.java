@@ -1,7 +1,7 @@
 package dev.matejhozlar.climbableropes.network;
 
 import dev.matejhozlar.climbableropes.ClimbableRopes;
-import dev.matejhozlar.climbableropes.RemoteClimbAnimations;
+import dev.matejhozlar.climbableropes.client.RemoteClimbAnimations;
 import foundry.veil.api.network.VeilPacketManager;
 import foundry.veil.api.network.handler.ClientPacketContext;
 import foundry.veil.api.network.handler.ServerPacketContext;

@@ -1,8 +1,8 @@
 package dev.matejhozlar.climbableropes.mixin;
 
 import com.simibubi.create.foundation.render.PlayerSkyhookRenderer;
-import dev.matejhozlar.climbableropes.ClimbAnimationController;
-import dev.matejhozlar.climbableropes.RemoteClimbAnimations;
+import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
+import dev.matejhozlar.climbableropes.client.RemoteClimbAnimations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.world.entity.player.Player;

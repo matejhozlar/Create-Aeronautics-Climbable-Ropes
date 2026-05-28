@@ -1,4 +1,4 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client;
 
 import dev.kosmx.playerAnim.api.layered.IAnimation;
 import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
@@ -9,6 +9,8 @@ import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
 import dev.kosmx.playerAnim.core.util.Ease;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
+import dev.matejhozlar.climbableropes.ClimbableRopes;
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.network.ClimbAnimUpdatePacket;
 import dev.matejhozlar.climbableropes.network.ClimbableRopesNetwork;
 import net.minecraft.client.Minecraft;
