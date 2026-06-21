@@ -49,12 +49,13 @@ This mod adds two **separate** climb modes driven by empty-hand interaction.
 
 ## Building
 
-This depends on Simulated's compiled jar. Either:
+Simulated has no public maven; it ships only jar-in-jar'd inside Create: Aeronautics. The build extracts Simulated's compiled classes from that bundle automatically (downloading Create: Aeronautics from Modrinth, pinned by `create_aeronautics_version` in `gradle.properties`), so no separate Simulated checkout is required.
 
-- Build Simulated locally first (`gradlew :simulated:neoforge:build` in `Simulated-Project/`), or
-- Drop a built `simulated-neoforge-*.jar` into `./libs/`.
+```sh
+gradlew build
+```
 
-Then run `gradlew build`.
+The extracted Simulated jar lands at `build/extracted-simulated/simulated.jar`; the output mod jar lands in `build/libs/climbable_ropes-<version>.jar`.
 
 ## Controls
 
