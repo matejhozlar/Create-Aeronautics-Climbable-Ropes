@@ -27,11 +27,11 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build Simulated jar
+      - name: Extract bundled Simulated jar
         run: |
-          git clone --depth 1 https://github.com/Creators-of-Aeronautics/Simulated-Project.git ../Simulated-Project
-          chmod +x ../Simulated-Project/gradlew
-          (cd ../Simulated-Project && ./gradlew :simulated:neoforge:jar --no-daemon)
+          ./gradlew extractSimulated
+          ls -la build/extracted-simulated/ || true
+          test -f build/extracted-simulated/simulated.jar
 
       - name: Build with Gradle
         run: ./gradlew build

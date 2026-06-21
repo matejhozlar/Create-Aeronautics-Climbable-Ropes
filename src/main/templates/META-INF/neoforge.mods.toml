@@ -33,15 +33,15 @@ config="${mod_id}.mixins.json"
 [[dependencies.${mod_id}]]
     modId="simulated"
     type="required"
-    versionRange="[${simulated_mod_version},)"
+    versionRange="${simulated_version_range}"
     ordering="AFTER"
     side="BOTH"
-    reason="Uses Simulated's ZiplineClientManager and RopeRidingPacket to drive the climb mode."
+    reason="Uses Simulated's ZiplineClientManager and RopeRidingPacket to drive the climb mode; these internals can move between Simulated versions, so the range is bounded to an untested-stack-safe window."
 
 [[dependencies.${mod_id}]]
     modId="sable"
     type="required"
-    versionRange="[${sable_mod_version},)"
+    versionRange="${sable_version_range}"
     ordering="AFTER"
     side="BOTH"
     reason="Transitive dependency of Simulated's rope strand system."

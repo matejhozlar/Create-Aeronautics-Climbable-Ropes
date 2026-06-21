@@ -25,28 +25,17 @@ Issues drafted from user reports sometimes contain wrong diagnoses or stale refe
 - Git
 - An IDE that understands Gradle (IntelliJ IDEA is what the project is configured for; `.idea/` settings include `downloadSources = true`)
 
-### Cloning and the Simulated dependency
+### The Simulated dependency
 
-Climbable Ropes is an addon for Simulated (the physics module bundled inside Create: Aeronautics) and is built against Simulated's compiled output. You have two options:
+Climbable Ropes is an addon for Simulated (the physics module bundled inside Create: Aeronautics) and is built against Simulated's compiled output. Simulated has no public maven; it ships only jar-in-jar'd inside Create: Aeronautics, so the build extracts Simulated's compiled classes straight from that bundle. No separate Simulated checkout is required.
 
-**Option A: build Simulated as a sibling checkout (matches CI).**
-
-```sh
-# Sibling layout: both repos under the same parent directory
-git clone https://github.com/Creators-of-Aeronautics/Simulated-Project.git ../Simulated-Project
-(cd ../Simulated-Project && ./gradlew :simulated:neoforge:jar)
-```
-
-The build script picks the resulting jar up from `../Simulated-Project/simulated/neoforge/build/libs/` automatically.
-
-**Option B: drop a prebuilt Simulated jar into `libs/`.**
+Create: Aeronautics is downloaded from Modrinth, pinned by `create_aeronautics_version` in `gradle.properties`. The regular build extracts Simulated automatically; to do it explicitly:
 
 ```sh
-mkdir -p libs
-cp /path/to/simulated-neoforge-<version>.jar libs/
+gradlew extractSimulated
 ```
 
-Either works; `libs/` takes precedence if both are present.
+This drops the bundled Simulated jar at `build/extracted-simulated/simulated.jar`.
 
 ### Building
 
@@ -70,7 +59,7 @@ Both runs use the configuration in `run/`. The server config for climbing lives 
 - **Java 21**, with `JavaLanguageVersion.of(21)` enforced by the build.
 - **Comments**: default to writing none. Only add a comment when the *why* is non-obvious (a hidden constraint, a workaround for a specific upstream bug, a subtle invariant). Don't restate what well-named identifiers already say, and don't leave historical notes ("previously did X, now does Y") or PR back-references in source.
 - **Match the existing structure.** The mod has a small surface area: each climb mode lives in its own controller (`ClimbController`, `PlungerClimbController`, `PlungerZiplineController`) and reads from `ClimbableRopesConfig`. New climb behaviors should slot in alongside, not modify Simulated via mixin. The README's "How it works" section explains the boundary deliberately: Simulated's existing zipline path is left untouched.
-- When you reference Simulated APIs (e.g. `ZiplineClientManager.raycastRope`, `RopeRidingPacket`, `LaunchedPlungerEntity`), check the version your local Simulated jar exposes; the surface has changed across releases.
+- When you reference Simulated APIs (e.g. `ZiplineClientManager.raycastRope`, `RopeRidingPacket`, `LaunchedPlungerEntity`), check the version the extracted Simulated jar exposes; the surface has changed across releases.
 
 ## Branching
 
@@ -89,7 +78,7 @@ Examples:
 ```
 fix: detect perfectly vertical ropes for climbing
 feat: add allowBlockMantle config flag
-chore: bump simulated_version to 1.2.2
+chore: bump create_aeronautics_version to 1.3.0
 refactor: extract closest-approach test from ClimbController
 ```
 

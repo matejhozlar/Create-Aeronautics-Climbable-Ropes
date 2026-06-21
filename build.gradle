@@ -50,12 +50,6 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
-    flatDir {
-        name = "SimulatedLocal"
-        dirs "../Simulated-Project/simulated/neoforge/build/libs",
-             "../Simulated-Project/all-neoforge/build/libs",
-             "libs"
-    }
 }
 
 base {
@@ -98,7 +92,26 @@ neoForge {
 
 configurations {
     runtimeClasspath.extendsFrom localRuntime
+    aeronauticsBundle
 }
+
+var extractedSimulatedDir = layout.buildDirectory.dir("extracted-simulated")
+
+// Simulated has no public maven and is only shipped jar-in-jar'd inside Create:
+// Aeronautics. Pull its compiled classes straight out of that bundle so the API
+// we compile against is byte-identical to the one we run against, with no
+// separate Simulated checkout/build to keep in sync.
+var extractSimulated = tasks.register("extractSimulated", Copy) {
+    inputs.files(configurations.aeronauticsBundle)
+    from { configurations.aeronauticsBundle.collect { zipTree(it) } }
+    include "META-INF/jarjar/*simulated*.jar"
+    eachFile { it.relativePath = new RelativePath(true, "simulated.jar") }
+    includeEmptyDirs = false
+    into extractedSimulatedDir
+}
+
+var simulatedCompileJar = files(extractedSimulatedDir.map { it.file("simulated.jar") })
+simulatedCompileJar.builtBy(extractSimulated)
 
 dependencies {
     compileOnly("dev.ryanhcode.sable:sable-neoforge-${minecraft_version}:${sable_version}") {
@@ -109,9 +122,9 @@ dependencies {
     compileOnly("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
 
-    compileOnly fileTree(dir: 'libs', include: ['simulated-*.jar'])
-    compileOnly fileTree(dir: '../Simulated-Project/simulated/neoforge/build/libs', include: ['*.jar'])
-    compileOnly fileTree(dir: '../Simulated-Project/all-neoforge/build/libs', include: ['*.jar'])
+    compileOnly simulatedCompileJar
+
+    aeronauticsBundle("maven.modrinth:create-aeronautics:${create_aeronautics_version}+mc${minecraft_version}") { transitive = false }
 
     compileOnly("foundry.veil:veil-neoforge-${minecraft_version}:${veil_version}") { transitive = false }
 
@@ -129,7 +142,7 @@ dependencies {
     // create-aeronautics jar-in-jars Simulated, Aeronautics, and Offroad at runtime.
     localRuntime("maven.modrinth:sable:${sable_mod_version}+mc${minecraft_version}")
     localRuntime("maven.modrinth:create:${create_mod_version}+mc${minecraft_version}")
-    localRuntime("maven.modrinth:create-aeronautics:1.2.1+mc${minecraft_version}")
+    localRuntime("maven.modrinth:create-aeronautics:${create_aeronautics_version}+mc${minecraft_version}")
     localRuntime("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
 }
 
@@ -143,9 +156,9 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_name               : mod_name,
             mod_license            : mod_license,
             mod_version            : mod_version,
-            sable_mod_version      : sable_mod_version,
             create_mod_version     : create_mod_version,
-            simulated_mod_version  : simulated_mod_version,
+            simulated_version_range: simulated_version_range,
+            sable_version_range    : sable_version_range,
             player_anim_mod_version: player_anim_mod_version,
     ]
     inputs.properties replaceProperties
