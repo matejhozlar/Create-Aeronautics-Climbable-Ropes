@@ -108,6 +108,14 @@ var extractSimulated = tasks.register("extractSimulated", Copy) {
     eachFile { it.relativePath = new RelativePath(true, "simulated.jar") }
     includeEmptyDirs = false
     into extractedSimulatedDir
+    // Copy reports success even when the include matches nothing, which would
+    // surface later as a baffling "cannot find ZiplineClientManager" during
+    // compileJava; fail at the source if the bundle layout ever changes.
+    doLast {
+        if (!extractedSimulatedDir.get().file("simulated.jar").asFile.exists()) {
+            throw new GradleException("No Simulated jar-in-jar found in create-aeronautics ${create_aeronautics_version}; the bundle's META-INF/jarjar layout may have changed.")
+        }
+    }
 }
 
 var simulatedCompileJar = files(extractedSimulatedDir.map { it.file("simulated.jar") })
