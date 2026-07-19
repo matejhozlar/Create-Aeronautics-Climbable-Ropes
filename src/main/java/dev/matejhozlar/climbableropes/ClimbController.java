@@ -66,6 +66,7 @@ public final class ClimbController {
             slideVelocity = 0.0;
             PlungerClimbController.reset();
             PlungerZiplineController.reset();
+            ClimbAnimationController.reset();
             return;
         }
         if (mc.isPaused()) return;
