@@ -8,6 +8,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -30,7 +31,7 @@ public final class ClimbAnimationRenderer {
 
     private ClimbAnimationRenderer() {}
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) return;
 
@@ -84,7 +85,7 @@ public final class ClimbAnimationRenderer {
             return;
         }
         ALIGNED_UP.keySet().removeIf(id -> mc.level.getPlayerByUUID(id) == null);
-        TRANSFORMED.removeIf(id -> mc.level.getPlayerByUUID(id) == null);
+        TRANSFORMED.clear();
     }
 
     private static Vec3 tangentFor(Player entity) {
