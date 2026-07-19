@@ -1,4 +1,6 @@
-## Version 2.1.0
+## Version 2.1.1
 
-### Changed
-- Updated compatibility to Create: Aeronautics 1.3.0 (NeoForge 21.1.228)
+### Fixed
+- Fixed climbing animation stopping after respawn or dimension change
+- Fixed stale climbing pose leaking into the next world after disconnecting mid-climb
+- Fixed a rendering glitch when another mod cancels player rendering during a climb
