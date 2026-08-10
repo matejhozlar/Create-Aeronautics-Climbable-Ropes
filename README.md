@@ -1,8 +1,8 @@
 # Climbable Ropes for Create Aeronautics
 
 <p align="center">
-  <a href="https://modrinth.com/mod/create-aeronautics-climbable-rope"><img src="https://img.shields.io/modrinth/dt/jImqv1M5?logo=modrinth&label=Modrinth&color=00AF5C&style=for-the-badge" alt="Modrinth Downloads"></a>
   <a href="https://www.curseforge.com/projects/1528764"><img src="https://img.shields.io/curseforge/dt/1528764?logo=curseforge&label=CurseForge&color=F16436&style=for-the-badge" alt="CurseForge Downloads"></a>
+  <a href="https://modrinth.com/mod/create-aeronautics-climbable-rope"><img src="https://img.shields.io/modrinth/dt/jImqv1M5?logo=modrinth&label=Modrinth&color=00AF5C&style=for-the-badge" alt="Modrinth Downloads"></a>
 </p>
 
 <p align="center">
