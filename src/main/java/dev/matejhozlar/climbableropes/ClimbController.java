@@ -6,6 +6,7 @@ import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
+import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientRopePoint;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientRopeStrand;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
 import dev.simulated_team.simulated.index.SimClickInteractions;
@@ -431,7 +432,8 @@ public final class ClimbController {
         }
         yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
-        player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
+        Vec3 carry = RopeMotion.carry(player, sq.velocity);
+        player.setDeltaMovement(carry.x + climbVel.x + xVel, carry.y + climbVel.y + yVel, carry.z + climbVel.z + zVel);
         player.fallDistance = 0.0F;
 
         ClimbAnimationController.ClimbState animState;
@@ -475,6 +477,7 @@ public final class ClimbController {
         double minRaw = 0.0;
         double minSegLen = 0.0;
         int minSegIndex = -1;
+        double minSegFrac = 0.0;
         double cumulative = 0.0;
         for (int i = 0; i < segCount; i++) {
             Vec3 a = JOMLConversion.toMojang(points.get(i).position());
@@ -495,6 +498,7 @@ public final class ClimbController {
                     minRaw = raw;
                     minSegLen = abLen;
                     minSegIndex = i;
+                    minSegFrac = along / abLen;
                 }
             }
             cumulative += abLen;
@@ -505,7 +509,16 @@ public final class ClimbController {
         } else if (minSegIndex == segCount - 1 && minRaw > minSegLen) {
             endOvershoot = minRaw - minSegLen;
         }
-        return new StrandQuery(minPoint, minTangent, minArc, minDistSq, endOvershoot);
+        Vec3 velocity = Vec3.ZERO;
+        if (minSegIndex >= 0) {
+            velocity = pointVelocity(points.get(minSegIndex))
+                    .lerp(pointVelocity(points.get(minSegIndex + 1)), minSegFrac);
+        }
+        return new StrandQuery(minPoint, minTangent, minArc, minDistSq, endOvershoot, velocity);
+    }
+
+    private static Vec3 pointVelocity(ClientRopePoint point) {
+        return JOMLConversion.toMojang(point.position()).subtract(JOMLConversion.toMojang(point.previousPosition()));
     }
 
     private static double totalArcLength(ClientRopeStrand strand) {
@@ -520,7 +533,7 @@ public final class ClimbController {
     }
 
     private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr,
-                               double endOvershoot) {}
+                               double endOvershoot, Vec3 velocity) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();
