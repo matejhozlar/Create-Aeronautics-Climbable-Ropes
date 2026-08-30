@@ -23,6 +23,8 @@ Simulated already has a rope-strand riding system (`ZiplineClientManager`) that 
 
 This mod adds two **separate** climb modes driven by empty-hand interaction.
 
+All three modes below carry the player with the rope when it is attached to a moving Sable sub-level (an ascending, descending, or flying ship). Each tick the rope's own motion is fed forward (strand points expose their previous-tick position; plunger ends use the sub-level's current pose against its last pose), minus whatever motion Sable already applies to a player standing on that sub-level, so the snap spring only corrects residual error instead of chasing the rope. Letting go keeps the ship's velocity.
+
 ### Hanging rope strands
 
 - The player right-clicks a rope strand with an **empty main hand**.
@@ -45,7 +47,7 @@ This mod adds two **separate** climb modes driven by empty-hand interaction.
 - Right-clicking a plunger rope while holding a `CHAIN_RIDEABLE`-tagged item (typically Create's wrench) embarks the player as a zipline rider rather than a climber.
 - `PlungerZiplineController` mirrors Simulated's `ZiplineClientManager.ridingTick` physics: per-tick damping (`v * -0.6`, with the along-rope component subtracted), assistance (`dir * v.dot(dir) * 0.04`), and a spring force pulling the player anchor toward the closest point on the segment. Gravity and normal `WASD` motion come from vanilla player physics, so a horizontal plunger rope can be walked across as a temporary bridge.
 - No steepness gate: plunger ropes are taut straight lines, so any angle is rideable (unlike the strand zipline which gates by `maxRopeZiplineAngle`).
-- Dismount on Sneak, fly toggle, more than 5 ticks grounded, plunger removed/unplunged, or pushed past either endpoint with `velocity.dot(dir) > 0.6`.
+- Dismount on Sneak, fly toggle, more than 5 ticks grounded, plunger removed/unplunged, or pushed past either endpoint with `velocity.dot(dir) > 0.6`. On a moving sub-level the rope's motion is applied to the player's position rather than `deltaMovement` (vanilla drag would erode it and skew the rope-relative physics), and any dismount hands the ship's velocity back so the rider keeps its momentum.
 
 ## Building
 

@@ -95,8 +95,10 @@ final class PlungerClimbController {
             return;
         }
 
-        Vec3 back = ropeEndWorld(backwardPlunger);
-        Vec3 fwd = ropeEndWorld(forwardPlunger);
+        RopeEnd backEnd = ropeEnd(backwardPlunger);
+        RopeEnd fwdEnd = ropeEnd(forwardPlunger);
+        Vec3 back = backEnd.position();
+        Vec3 fwd = fwdEnd.position();
         Vec3 ab = fwd.subtract(back);
         double abLen = ab.length();
         if (abLen < 1e-4) {
@@ -174,7 +176,7 @@ final class PlungerClimbController {
         }
         yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
-        Vec3 ropeVel = ropeEndVelocity(backwardPlunger).lerp(ropeEndVelocity(forwardPlunger), t / abLen);
+        Vec3 ropeVel = backEnd.velocity().lerp(fwdEnd.velocity(), t / abLen);
         Vec3 carry = RopeMotion.carry(player, ropeVel);
         player.setDeltaMovement(carry.x + climbVel.x + xVel, carry.y + climbVel.y + yVel, carry.z + climbVel.z + zVel);
         player.fallDistance = 0.0F;
@@ -193,8 +195,8 @@ final class PlungerClimbController {
 
     private static void embark(Pair pair, Minecraft mc, LocalPlayer player) {
         if (isRidingPair(pair)) return;
-        Vec3 posA = ropeEndWorld(pair.a());
-        Vec3 posB = ropeEndWorld(pair.b());
+        Vec3 posA = ropeEnd(pair.a()).position();
+        Vec3 posB = ropeEnd(pair.b()).position();
         Vec3 ab = posB.subtract(posA);
         double abLen = ab.length();
         if (abLen < 1e-4) return;
@@ -302,8 +304,8 @@ final class PlungerClimbController {
             seen.add(p.getId());
             seen.add(other.getId());
 
-            Vec3 a = ropeEndWorld(p);
-            Vec3 b = ropeEndWorld(other);
+            Vec3 a = ropeEnd(p).position();
+            Vec3 b = ropeEnd(other).position();
             RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
             if (hit == null) continue;
             if (hit.lateralSq() > radiusSq) continue;
@@ -347,18 +349,15 @@ final class PlungerClimbController {
         return new RaySegHit(dx * dx + dy * dy + dz * dz, s * s);
     }
 
-    static Vec3 ropeEndWorld(LaunchedPlungerEntity p) {
-        Vec3 local = ropeEndLocal(p, p.position());
-        SubLevel sl = Sable.HELPER.getContainingClient(p.position());
-        return sl == null ? local : sl.logicalPose().transformPosition(local);
-    }
+    record RopeEnd(Vec3 position, Vec3 velocity) {}
 
-    static Vec3 ropeEndVelocity(LaunchedPlungerEntity p) {
+    static RopeEnd ropeEnd(LaunchedPlungerEntity p) {
         Vec3 local = ropeEndLocal(p, p.position());
         Vec3 localPrev = ropeEndLocal(p, new Vec3(p.xo, p.yo, p.zo));
         SubLevel sl = Sable.HELPER.getContainingClient(p.position());
-        if (sl == null) return local.subtract(localPrev);
-        return sl.logicalPose().transformPosition(local).subtract(sl.lastPose().transformPosition(localPrev));
+        if (sl == null) return new RopeEnd(local, local.subtract(localPrev));
+        Vec3 world = sl.logicalPose().transformPosition(local);
+        return new RopeEnd(world, world.subtract(sl.lastPose().transformPosition(localPrev)));
     }
 
     private static Vec3 ropeEndLocal(LaunchedPlungerEntity p, Vec3 pos) {
