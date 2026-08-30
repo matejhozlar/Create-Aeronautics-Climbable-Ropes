@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
@@ -19,13 +20,16 @@ import java.util.UUID;
 @OnlyIn(Dist.CLIENT)
 public final class EmfCompat {
     private static final Logger LOGGER = LogUtils.getLogger();
+    // Never cleared on level change: EMF's paused set is process-wide and keyed by UUID,
+    // so a player can only be un-paused once they are seen again.
     private static final Set<UUID> PAUSED = new HashSet<>();
     private static boolean disabled;
 
     private EmfCompat() {}
 
     public static void register() {
-        NeoForge.EVENT_BUS.addListener(EmfCompat::onClientTick);
+        // Must run after the climb tick handlers so the pause lands in the same tick the pose changes.
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, EmfCompat::onClientTick);
     }
 
     private static void onClientTick(ClientTickEvent.Post event) {
@@ -40,7 +44,7 @@ public final class EmfCompat {
                     EMFAnimationApi.resumeAllCustomAnimationsForEntity(EMFAnimationApi.emfEntityOf(player));
                 }
             }
-        } catch (LinkageError e) {
+        } catch (LinkageError | RuntimeException e) {
             disabled = true;
             LOGGER.warn("Entity Model Features animation API is incompatible, custom player models may override climb animations", e);
         }
