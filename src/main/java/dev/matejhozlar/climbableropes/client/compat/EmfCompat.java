@@ -2,6 +2,7 @@ package dev.matejhozlar.climbableropes.client.compat;
 
 import com.mojang.logging.LogUtils;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
+import dev.matejhozlar.climbableropes.mixin.PlayerSkyhookRendererAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
@@ -36,8 +37,12 @@ public final class EmfCompat {
         Minecraft mc = Minecraft.getInstance();
         if (disabled || mc.level == null) return;
         try {
+            // Create's skyhook hanging pose (flat ropes, ziplines, chain conveyors) is
+            // overwritten by EMF flight animations just like our climb clips, so pause
+            // for hanging players even when no clip of ours is active.
+            Set<UUID> hanging = PlayerSkyhookRendererAccessor.climbableRopes$hangingPlayers();
             for (Player player : mc.level.players()) {
-                if (ClimbAnimationController.isCustomPoseActive(player)) {
+                if (ClimbAnimationController.isCustomPoseActive(player) || hanging.contains(player.getUUID())) {
                     EMFAnimationApi.pauseAllCustomAnimationsForEntity(EMFAnimationApi.emfEntityOf(player));
                     PAUSED.add(player.getUUID());
                 } else if (PAUSED.remove(player.getUUID())) {
