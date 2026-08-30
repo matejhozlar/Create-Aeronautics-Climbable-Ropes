@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface PlayerSkyhookRendererAccessor {
 
     @Accessor(value = "hangingPlayers", remap = false)
-    static Set<UUID> climbableRopes$hangingPlayers() {
+    static Set<UUID> getHangingPlayers() {
         throw new AssertionError();
     }
 }

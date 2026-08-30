@@ -114,6 +114,10 @@ public final class ClimbAnimationController {
         return layer != null && (currentAnimId != null || embarkPending);
     }
 
+    public static boolean isLocalPlayerAttached() {
+        return currentMode != null;
+    }
+
     public static boolean isCustomPoseActive(Player player) {
         LocalPlayer local = Minecraft.getInstance().player;
         if (local != null && player.getUUID().equals(local.getUUID())) return isCustomPoseActive();
