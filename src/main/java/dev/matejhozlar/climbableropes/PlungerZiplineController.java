@@ -13,6 +13,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 final class PlungerZiplineController {
@@ -71,16 +72,6 @@ final class PlungerZiplineController {
             return;
         }
 
-        if (player.onGround()) groundedTimer++;
-        else groundedTimer = 0;
-
-        if (groundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()
-                || player.isShiftKeyDown()
-                || player.getAbilities().flying) {
-            disembark();
-            return;
-        }
-
         Vec3 a = PlungerClimbController.ropeEndWorld(plungerA);
         Vec3 b = PlungerClimbController.ropeEndWorld(plungerB);
         Vec3 ab = b.subtract(a);
@@ -93,7 +84,29 @@ final class PlungerZiplineController {
 
         Vec3 anchor = anchor(player);
         double t = Mth.clamp(anchor.subtract(a).dot(dir), 0.0, abLen);
+        Vec3 ropeVel = PlungerClimbController.ropeEndVelocity(plungerA)
+                .lerp(PlungerClimbController.ropeEndVelocity(plungerB), t / abLen);
+        Vec3 carry = RopeMotion.carry(player, ropeVel);
+        // Vanilla drag erodes deltaMovement every tick, so carrying the rope's motion there would skew the
+        // rope-relative physics below; moving the position instead keeps deltaMovement relative to the rope.
+        if (moveBy(mc, player, carry)) {
+            anchor = anchor.add(carry);
+            t = Mth.clamp(anchor.subtract(a).dot(dir), 0.0, abLen);
+        }
         Vec3 ropeWorld = a.add(dir.scale(t));
+
+        if (player.onGround()) groundedTimer++;
+        else groundedTimer = 0;
+
+        if (player.isShiftKeyDown()) {
+            letGo(player, carry);
+            return;
+        }
+        if (groundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get()
+                || player.getAbilities().flying) {
+            disembark();
+            return;
+        }
 
         Vec3 v = player.getDeltaMovement();
         if (v.lengthSqr() > 1e-8) {
@@ -102,7 +115,7 @@ final class PlungerZiplineController {
             boolean atStart = t < END_PROXIMITY;
             if ((atEnd && vn.dot(dir) > EXIT_DOT_THRESHOLD)
                     || (atStart && vn.dot(dir) < -EXIT_DOT_THRESHOLD)) {
-                disembark();
+                letGo(player, carry);
                 return;
             }
         }
@@ -126,6 +139,18 @@ final class PlungerZiplineController {
         if (AnimationTickHolder.getTicks() % 10 == 0) {
             VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), false));
         }
+    }
+
+    private static boolean moveBy(Minecraft mc, LocalPlayer player, Vec3 delta) {
+        AABB moved = player.getBoundingBox().move(delta);
+        if (!mc.level.noCollision(player, moved)) return false;
+        player.setPos(player.position().add(delta));
+        return true;
+    }
+
+    private static void letGo(LocalPlayer player, Vec3 carry) {
+        player.setDeltaMovement(player.getDeltaMovement().add(carry));
+        disembark();
     }
 
     private static void embark(PlungerClimbController.Pair pair, Minecraft mc, LocalPlayer player) {

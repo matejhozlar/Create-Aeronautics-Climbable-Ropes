@@ -174,7 +174,9 @@ final class PlungerClimbController {
         }
         yVel = Math.max(-snapVelCap, Math.min(snapVelCap, yVel));
 
-        player.setDeltaMovement(climbVel.x + xVel, climbVel.y + yVel, climbVel.z + zVel);
+        Vec3 ropeVel = ropeEndVelocity(backwardPlunger).lerp(ropeEndVelocity(forwardPlunger), t / abLen);
+        Vec3 carry = RopeMotion.carry(player, ropeVel);
+        player.setDeltaMovement(carry.x + climbVel.x + xVel, carry.y + climbVel.y + yVel, carry.z + climbVel.z + zVel);
         player.fallDistance = 0.0F;
 
         ClimbAnimationController.ClimbState animState;
@@ -346,11 +348,22 @@ final class PlungerClimbController {
     }
 
     static Vec3 ropeEndWorld(LaunchedPlungerEntity p) {
-        Direction dir = p.getData(LaunchedPlungerEntity.PLUNGED_DIRECTION);
-        Vec3 normal = Vec3.atLowerCornerOf(dir.getNormal());
-        Vec3 local = p.position().add(normal.scale(PLUNGER_END_OFFSET));
+        Vec3 local = ropeEndLocal(p, p.position());
         SubLevel sl = Sable.HELPER.getContainingClient(p.position());
         return sl == null ? local : sl.logicalPose().transformPosition(local);
+    }
+
+    static Vec3 ropeEndVelocity(LaunchedPlungerEntity p) {
+        Vec3 local = ropeEndLocal(p, p.position());
+        Vec3 localPrev = ropeEndLocal(p, new Vec3(p.xo, p.yo, p.zo));
+        SubLevel sl = Sable.HELPER.getContainingClient(p.position());
+        if (sl == null) return local.subtract(localPrev);
+        return sl.logicalPose().transformPosition(local).subtract(sl.lastPose().transformPosition(localPrev));
+    }
+
+    private static Vec3 ropeEndLocal(LaunchedPlungerEntity p, Vec3 pos) {
+        Direction dir = p.getData(LaunchedPlungerEntity.PLUNGED_DIRECTION);
+        return pos.add(Vec3.atLowerCornerOf(dir.getNormal()).scale(PLUNGER_END_OFFSET));
     }
 
     private static Vec3 sideOffset(double yaw, Vec3 ropeDir) {
