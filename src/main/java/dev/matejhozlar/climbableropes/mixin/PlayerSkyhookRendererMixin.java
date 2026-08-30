@@ -2,8 +2,6 @@ package dev.matejhozlar.climbableropes.mixin;
 
 import com.simibubi.create.foundation.render.PlayerSkyhookRenderer;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
-import dev.matejhozlar.climbableropes.client.RemoteClimbAnimations;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,7 +14,7 @@ public class PlayerSkyhookRendererMixin {
 
     @Inject(method = "beforeSetupAnim", at = @At("HEAD"), cancellable = true, remap = false)
     private static void climbableRopes$cancelBefore(Player player, HumanoidModel<?> model, CallbackInfo ci) {
-        if (!climbableRopes$shouldSuppress(player)) return;
+        if (!ClimbAnimationController.isCustomPoseActive(player)) return;
         model.head.resetPose();
         model.hat.resetPose();
         model.body.resetPose();
@@ -29,14 +27,6 @@ public class PlayerSkyhookRendererMixin {
 
     @Inject(method = "afterSetupAnim", at = @At("HEAD"), cancellable = true, remap = false)
     private static void climbableRopes$cancelAfter(Player player, HumanoidModel<?> model, CallbackInfo ci) {
-        if (climbableRopes$shouldSuppress(player)) ci.cancel();
-    }
-
-    private static boolean climbableRopes$shouldSuppress(Player player) {
-        Player local = Minecraft.getInstance().player;
-        if (local != null && player.getUUID().equals(local.getUUID())) {
-            return ClimbAnimationController.isCustomPoseActive();
-        }
-        return RemoteClimbAnimations.isCustomPoseActive(player.getUUID());
+        if (ClimbAnimationController.isCustomPoseActive(player)) ci.cancel();
     }
 }

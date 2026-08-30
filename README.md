@@ -137,4 +137,4 @@ Defaults preserve the standard behavior; these affect physics feel and targeting
 | `enableClimbAnimation` | `true` | Play the rope-climb body/arm/leg animations while attached to a rope. |
 | `animationSpeedMultiplier` | `1.0` | Playback-speed multiplier for the climb animations. `1.0` is the authored speed. |
 
-Animations are driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator), an MIT-licensed library. Climbable Ropes bundles it via jar-in-jar, so end users do not install it separately. If a standalone copy is also present, NeoForge deduplicates by version and loads whichever is newer.
+Animations are driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator), an MIT-licensed library. Climbable Ropes bundles it via jar-in-jar, so end users do not install it separately. If a standalone copy is also present, NeoForge deduplicates by version and loads whichever is newer. When Entity Model Features is installed, its custom player animations (for example Fresh Animations: Player Extension) are paused for a player while a climb animation plays and resume as soon as it ends, so the climb pose is not overwritten.
