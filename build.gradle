@@ -147,6 +147,9 @@ dependencies {
         }
     }
 
+    compileOnly("maven.modrinth:entity-model-features:${emf_version}")
+    compileOnly("maven.modrinth:entitytexturefeatures:${etf_version}")
+
     // create-aeronautics jar-in-jars Simulated, Aeronautics, and Offroad at runtime.
     localRuntime("maven.modrinth:sable:${sable_mod_version}+mc${minecraft_version}")
     localRuntime("maven.modrinth:create:${create_mod_version}+mc${minecraft_version}")

@@ -61,3 +61,14 @@ config="${mod_id}.mixins.json"
     ordering="AFTER"
     side="CLIENT"
     reason="Drives the climb animation playback layer."
+
+[[dependencies.${mod_id}]]
+    modId="entity_model_features"
+    type="optional"
+    versionRange="[2.1.3,)"
+    ordering="AFTER"
+    side="CLIENT"
+    reason="Pauses EMF custom player animations (such as Fresh Animations: Player Extension) while a climb animation plays so they do not override it."
+    [dependencies.${mod_id}.mc-publish]
+        curseforge="entity-model-features"
+        modrinth="entity-model-features"
