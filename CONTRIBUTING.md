@@ -58,8 +58,8 @@ Both runs use the configuration in `run/`. The server config for climbing lives 
 
 - **Java 21**, with `JavaLanguageVersion.of(21)` enforced by the build.
 - **Comments**: default to writing none. Only add a comment when the *why* is non-obvious (a hidden constraint, a workaround for a specific upstream bug, a subtle invariant). Don't restate what well-named identifiers already say, and don't leave historical notes ("previously did X, now does Y") or PR back-references in source.
-- **Match the existing structure.** The mod has a small surface area: each climb mode lives in its own controller (`ClimbController`, `PlungerClimbController`, `PlungerZiplineController`) and reads from `ClimbableRopesConfig`. New climb behaviors should slot in alongside, not modify Simulated via mixin. The README's "How it works" section explains the boundary deliberately: Simulated's existing zipline path is left untouched.
-- When you reference Simulated APIs (e.g. `ZiplineClientManager.raycastRope`, `RopeRidingPacket`, `LaunchedPlungerEntity`), check the version the extracted Simulated jar exposes; the surface has changed across releases.
+- **Match the existing structure.** The mod has a small surface area: each ride mode lives in its own controller under `client.ride` (`StrandClimbController`, `PlungerClimbController`, `PlungerZiplineController`), `RopeRideDispatcher` routes ticks and right-clicks between them, and all of them read from `ClimbableRopesConfig`. New climb behaviors should slot in alongside, not modify Simulated via mixin. The README's "How it works" section explains the boundary deliberately: Simulated's existing zipline path is left untouched.
+- When you reference Simulated APIs (e.g. `ZiplineClientManager.getClosestPointOnStrand`, `RopeRidingPacket`, `LaunchedPlungerEntity`), check the version the extracted Simulated jar exposes; the surface has changed across releases.
 
 ## Branching
 
@@ -79,7 +79,7 @@ Examples:
 fix: detect perfectly vertical ropes for climbing
 feat: add allowBlockMantle config flag
 chore: bump create_aeronautics_version to 1.3.0
-refactor: extract closest-approach test from ClimbController
+refactor: extract closest-approach test from StrandClimbController
 ```
 
 ## Pull requests
