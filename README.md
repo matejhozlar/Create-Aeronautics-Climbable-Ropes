@@ -37,7 +37,7 @@ All three modes below carry the player with the rope when it is attached to a mo
 ### Plunger ropes
 
 - Two paired `LaunchedPlungerEntity` projectiles (fired from Simulated's Plunger Launcher) form a rope between them.
-- `PlungerClimbController` iterates `ClientLevel.entitiesForRendering()` for plungers, computes endpoint positions in world render space (accounting for Sable sublevel transforms so ropes attached to assembled physics objects work), and ray-segment-tests against each pair.
+- `PlungerRope` iterates `ClientLevel.entitiesForRendering()` for plungers, computes endpoint positions in world render space (accounting for Sable sublevel transforms so ropes attached to assembled physics objects work), and ray-segment-tests against each pair; `PlungerClimbController` drives the climb along the pair it picks.
 - Embark direction is locked when grabbing the rope. For vertical-ish ropes W goes to the upper end; otherwise W goes toward whichever end the player is facing.
 - Slide acceleration and terminal speed scale with `sin(angle from horizontal)`, so vertical plunger ropes accelerate fastest and near-horizontal ropes don't slide beyond the descend baseline.
 - The same `RopeRidingPacket` signal drives the hanging animation in multiplayer.
