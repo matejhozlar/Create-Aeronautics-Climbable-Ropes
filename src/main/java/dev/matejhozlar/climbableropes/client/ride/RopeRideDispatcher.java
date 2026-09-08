@@ -75,9 +75,9 @@ public final class RopeRideDispatcher {
     }
 
     private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
-        if (StrandClimbController.isClimbing()) StrandClimbController.tickClimb(mc, player);
-        else if (PlungerClimbController.isClimbing()) PlungerClimbController.tickClimb(mc, player);
-        else if (PlungerZiplineController.isRiding()) PlungerZiplineController.ridingTick(mc, player);
+        if (StrandClimbController.isClimbing()) StrandClimbController.tick(mc, player);
+        else if (PlungerClimbController.isClimbing()) PlungerClimbController.tick(mc, player);
+        else if (PlungerZiplineController.isRiding()) PlungerZiplineController.tick(mc, player);
     }
 
     private static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {

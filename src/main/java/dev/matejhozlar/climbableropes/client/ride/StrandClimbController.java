@@ -223,7 +223,7 @@ final class StrandClimbController {
         return player.getLookAngle().dot(chordDir) >= 0;
     }
 
-    static void tickClimb(Minecraft mc, LocalPlayer player) {
+    static void tick(Minecraft mc, LocalPlayer player) {
         if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;

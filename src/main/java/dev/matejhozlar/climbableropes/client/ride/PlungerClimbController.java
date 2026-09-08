@@ -68,7 +68,7 @@ final class PlungerClimbController {
         embark(pair, mc, player);
     }
 
-    static void tickClimb(Minecraft mc, LocalPlayer player) {
+    static void tick(Minecraft mc, LocalPlayer player) {
         if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;

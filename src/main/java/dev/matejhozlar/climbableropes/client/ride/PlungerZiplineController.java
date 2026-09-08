@@ -58,7 +58,7 @@ final class PlungerZiplineController {
         embark(pair, mc, player);
     }
 
-    static void ridingTick(Minecraft mc, LocalPlayer player) {
+    static void tick(Minecraft mc, LocalPlayer player) {
         if (mc.isPaused()) return;
 
         if (!AllTags.AllItemTags.CHAIN_RIDEABLE.matches(player.getMainHandItem())) {
