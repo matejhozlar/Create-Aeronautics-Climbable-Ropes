@@ -8,8 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashSet;
@@ -52,17 +50,11 @@ final class PlungerRope {
 
     static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {
         if (mc.level == null) return null;
-        double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
-        Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getLookAngle();
-        HitResult hitResult = mc.hitResult;
-        double blockDistSq = hitResult == null
-                ? maxRange * maxRange
-                : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation()).distanceToSqr(eye);
+        HoverRay ray = HoverRay.from(mc, player);
 
         Set<Integer> seen = new HashSet<>();
         Pair best = null;
-        double bestDepthSq = blockDistSq;
+        double bestDepthSq = ray.blockDistSqr();
         double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
         double radiusSq = radius * radius;
 
@@ -76,46 +68,13 @@ final class PlungerRope {
 
             Vec3 a = ropeEnd(p).position();
             Vec3 b = ropeEnd(other).position();
-            RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
+            HoverRay.Hit hit = ray.hit(a, b);
             if (hit == null) continue;
-            if (hit.lateralSq() > radiusSq) continue;
-            if (hit.depthSq() > bestDepthSq) continue;
-            bestDepthSq = hit.depthSq();
+            if (hit.lateralSqr() > radiusSq) continue;
+            if (hit.depthSqr() > bestDepthSq) continue;
+            bestDepthSq = hit.depthSqr();
             best = new Pair(p, other);
         }
         return best;
-    }
-
-    private record RaySegHit(double lateralSq, double depthSq) {}
-
-    private static RaySegHit raySegmentHit(Vec3 eye, Vec3 look, double maxLen, Vec3 a, Vec3 b) {
-        Vec3 segDir = b.subtract(a);
-        double segLen = segDir.length();
-        if (segLen < 1e-6) return null;
-        Vec3 segUnit = segDir.scale(1.0 / segLen);
-
-        double dotLD = look.dot(segUnit);
-        double denom = 1.0 - dotLD * dotLD;
-        Vec3 r = eye.subtract(a);
-        double rSeg = r.dot(segUnit);
-        double rLook = r.dot(look);
-
-        double s, t;
-        if (denom < 1e-9) {
-            s = 0.0;
-            t = rSeg;
-        } else {
-            s = (dotLD * rSeg - rLook) / denom;
-            t = (rSeg - dotLD * rLook) / denom;
-        }
-        s = Math.max(0.0, Math.min(maxLen, s));
-        t = Math.max(0.0, Math.min(segLen, t));
-
-        Vec3 onRay = eye.add(look.scale(s));
-        Vec3 onSeg = a.add(segUnit.scale(t));
-        double dx = onRay.x - onSeg.x;
-        double dy = onRay.y - onSeg.y;
-        double dz = onRay.z - onSeg.z;
-        return new RaySegHit(dx * dx + dy * dy + dz * dz, s * s);
     }
 }

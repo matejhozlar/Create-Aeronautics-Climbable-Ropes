@@ -3,7 +3,6 @@ package dev.matejhozlar.climbableropes.client.ride;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
-import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientLevelRopeManager;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ClientRopePoint;
@@ -18,9 +17,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.UUID;
@@ -67,17 +64,7 @@ final class StrandClimbController {
 
     private static UUID findVerticalHover(Minecraft mc, LocalPlayer player) {
         ClientLevelRopeManager mgr = ClientLevelRopeManager.getOrCreate(mc.level);
-        double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
-        HitResult hitResult = mc.hitResult;
-        Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getLookAngle();
-
-        double bestDistSqr = hitResult == null
-                ? maxRange * maxRange
-                : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation())
-                        .distanceToSqr(eye);
-
-        HoverHit hit = raycastAnyRope(mgr, eye, look, maxRange, bestDistSqr);
+        HoverHit hit = raycastAnyRope(mgr, HoverRay.from(mc, player));
         if (hit == null) return null;
 
         double minVerticalDot = Math.cos(Math.toRadians(ClimbableRopesConfig.MAX_CLIMB_ANGLE_FROM_VERTICAL.get()));
@@ -86,10 +73,10 @@ final class StrandClimbController {
 
     private record HoverHit(UUID strand, Vec3 tangent) {}
 
-    private static HoverHit raycastAnyRope(ClientLevelRopeManager mgr, Vec3 eye, Vec3 look,
-                                           double maxRange, double bestDistSqr) {
+    private static HoverHit raycastAnyRope(ClientLevelRopeManager mgr, HoverRay ray) {
         UUID best = null;
         Vec3 bestTangent = null;
+        double bestDistSqr = ray.blockDistSqr();
         double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
         double radiusSqr = radius * radius;
         for (ClientRopeStrand strand : mgr.getAllStrands()) {
@@ -97,36 +84,11 @@ final class StrandClimbController {
             for (int i = 0; i < points.size() - 1; i++) {
                 Vec3 a = JOMLConversion.toMojang(points.get(i).position());
                 Vec3 b = JOMLConversion.toMojang(points.get(i + 1).position());
-                Vec3 segDir = b.subtract(a);
-                double segLen = segDir.length();
-                if (segLen < 1e-6) continue;
-                Vec3 segUnit = segDir.scale(1.0 / segLen);
-
-                double dotLD = look.dot(segUnit);
-                double denom = 1.0 - dotLD * dotLD;
-                Vec3 r = eye.subtract(a);
-                double rSeg = r.dot(segUnit);
-                double rLook = r.dot(look);
-
-                double s, t;
-                if (denom < 1e-9) {
-                    s = 0.0;
-                    t = rSeg;
-                } else {
-                    s = (dotLD * rSeg - rLook) / denom;
-                    t = (rSeg - dotLD * rLook) / denom;
-                }
-                s = Math.max(0.0, Math.min(maxRange, s));
-                t = Math.max(0.0, Math.min(segLen, t));
-
-                Vec3 onRay = eye.add(look.scale(s));
-                Vec3 onSeg = a.add(segUnit.scale(t));
-                if (onRay.distanceToSqr(onSeg) > radiusSqr) continue;
-                double hitDistSqr = s * s;
-                if (hitDistSqr > bestDistSqr) continue;
-                bestDistSqr = hitDistSqr;
+                HoverRay.Hit hit = ray.hit(a, b);
+                if (hit == null || hit.lateralSqr() > radiusSqr || hit.depthSqr() > bestDistSqr) continue;
+                bestDistSqr = hit.depthSqr();
                 best = strand.getUuid();
-                bestTangent = segUnit;
+                bestTangent = hit.segmentDir();
             }
         }
         return best == null ? null : new HoverHit(best, bestTangent);
