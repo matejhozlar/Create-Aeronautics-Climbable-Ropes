@@ -44,7 +44,7 @@ final class StrandClimbController {
 
     private StrandClimbController() {}
 
-    static boolean isClimbing() {
+    static boolean isRiding() {
         return climbingRope != null;
     }
 

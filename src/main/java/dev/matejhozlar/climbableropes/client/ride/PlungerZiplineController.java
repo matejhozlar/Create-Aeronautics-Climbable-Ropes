@@ -51,11 +51,12 @@ final class PlungerZiplineController {
         groundedTimer = 0;
     }
 
-    static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
-        if (!justPressed) return;
+    static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
+        if (!justPressed) return false;
         PlungerClimbController.Pair pair = PlungerClimbController.findHoveredPair(mc, player);
-        if (pair == null) return;
+        if (pair == null) return false;
         embark(pair, mc, player);
+        return true;
     }
 
     static void tick(Minecraft mc, LocalPlayer player) {

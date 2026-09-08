@@ -42,7 +42,7 @@ public final class RopeRideDispatcher {
         boolean justPressed = useDown && !prevUseDown;
         prevUseDown = useDown;
 
-        if (StrandClimbController.isClimbing() || PlungerClimbController.isClimbing() || PlungerZiplineController.isRiding()) {
+        if (StrandClimbController.isRiding() || PlungerClimbController.isRiding() || PlungerZiplineController.isRiding()) {
             if (justPressed) tryHoverEmbark(mc, player, true);
             tickActiveRide(mc, player);
             return;
@@ -58,7 +58,7 @@ public final class RopeRideDispatcher {
         // While climbing, the mod fully drives movement through setDeltaMovement. Vanilla walk input
         // (faster with sprint) would otherwise leak through and let the player walk off the rope.
         // The zipline mode is excluded: it intentionally rides on vanilla WASD movement.
-        if (!StrandClimbController.isClimbing() && !PlungerClimbController.isClimbing()) return;
+        if (!StrandClimbController.isRiding() && !PlungerClimbController.isRiding()) return;
         Input input = event.getInput();
         input.forwardImpulse = 0.0F;
         input.leftImpulse = 0.0F;
@@ -75,8 +75,8 @@ public final class RopeRideDispatcher {
     }
 
     private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
-        if (StrandClimbController.isClimbing()) StrandClimbController.tick(mc, player);
-        else if (PlungerClimbController.isClimbing()) PlungerClimbController.tick(mc, player);
+        if (StrandClimbController.isRiding()) StrandClimbController.tick(mc, player);
+        else if (PlungerClimbController.isRiding()) PlungerClimbController.tick(mc, player);
         else if (PlungerZiplineController.isRiding()) PlungerZiplineController.tick(mc, player);
     }
 

@@ -40,7 +40,7 @@ final class PlungerClimbController {
 
     private PlungerClimbController() {}
 
-    static boolean isClimbing() {
+    static boolean isRiding() {
         return forwardPlunger != null;
     }
 
@@ -61,11 +61,12 @@ final class PlungerClimbController {
         slideVelocity = 0.0;
     }
 
-    static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
-        if (!justPressed) return;
+    static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
+        if (!justPressed) return false;
         Pair pair = findHoveredPair(mc, player);
-        if (pair == null) return;
+        if (pair == null) return false;
         embark(pair, mc, player);
+        return true;
     }
 
     static void tick(Minecraft mc, LocalPlayer player) {
