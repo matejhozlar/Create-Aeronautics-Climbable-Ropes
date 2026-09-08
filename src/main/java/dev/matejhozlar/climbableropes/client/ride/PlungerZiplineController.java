@@ -5,14 +5,8 @@ import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
-import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
-import foundry.veil.api.network.VeilPacketManager;
-import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -82,7 +76,7 @@ final class PlungerZiplineController {
         }
         Vec3 dir = ab.scale(1.0 / abLen);
 
-        Vec3 anchor = anchor(player);
+        Vec3 anchor = ClimbPhysics.anchor(player);
         double t = Mth.clamp(anchor.subtract(a).dot(dir), 0.0, abLen);
         Vec3 carry = RopeMotion.carry(player, endA.velocity().lerp(endB.velocity(), t / abLen));
         // Vanilla drag would erode a carry placed in deltaMovement and skew the rope-relative physics below.
@@ -128,9 +122,7 @@ final class PlungerZiplineController {
         player.setDeltaMovement(v.add(dampingForce).add(assistanceForce).add(springForce));
         player.fallDistance = 0.0F;
 
-        if (AnimationTickHolder.getTicks() % 10 == 0) {
-            VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), false));
-        }
+        RopeRide.keepAlive(plungerA.getUUID());
     }
 
     private static Vec3 moveBy(Minecraft mc, LocalPlayer player, Vec3 delta) {
@@ -152,29 +144,13 @@ final class PlungerZiplineController {
         plungerB = pair.b();
         groundedTimer = 0;
 
-        player.getAbilities().flying = false;
-        player.stopFallFlying();
-
-        mc.gui.setOverlayMessage(
-                Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage()),
-                false);
-        mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
-
-        VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), false));
-        ClimbAnimationController.onEmbark(ClimbAnimationController.ClimbMode.PLUNGER_ZIPLINE);
+        RopeRide.stopFlight(player);
+        RopeRide.notifyEmbark(mc, plungerA.getUUID(), ClimbAnimationController.ClimbMode.PLUNGER_ZIPLINE);
     }
 
     static void disembark() {
         if (plungerA == null) return;
-        VeilPacketManager.server().sendPacket(new RopeRidingPacket(plungerA.getUUID(), true));
+        RopeRide.notifyDisembark(plungerA.getUUID());
         reset();
-        Minecraft.getInstance().getSoundManager()
-                .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
-        ClimbAnimationController.onDisembark();
-    }
-
-    private static Vec3 anchor(LocalPlayer player) {
-        double chainYOffset = 0.5 * player.getScale();
-        return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
     }
 }
