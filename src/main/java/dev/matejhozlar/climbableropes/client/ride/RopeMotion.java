@@ -1,4 +1,4 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client.ride;
 
 import dev.ryanhcode.sable.mixinterface.entity.entity_sublevel_collision.LivingEntityMovementExtension;
 import net.minecraft.client.player.LocalPlayer;

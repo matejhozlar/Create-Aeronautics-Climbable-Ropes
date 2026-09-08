@@ -1,5 +1,6 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client.ride;
 
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;

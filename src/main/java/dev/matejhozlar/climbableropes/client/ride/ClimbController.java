@@ -1,6 +1,8 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client.ride;
 
 import com.simibubi.create.AllTags;
+import dev.matejhozlar.climbableropes.ClimbableRopes;
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;
