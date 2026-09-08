@@ -22,14 +22,14 @@ import java.util.Set;
 import java.util.UUID;
 
 @EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
-public final class ClimbAnimationRenderer {
+public final class ClimbPoseAligner {
     private static final Vec3 WORLD_UP = new Vec3(0.0, 1.0, 0.0);
     private static final double ALIGN_SMOOTHING = 0.2;
 
     private static final Map<UUID, Vec3> ALIGNED_UP = new HashMap<>();
     private static final Set<UUID> TRANSFORMED = new HashSet<>();
 
-    private ClimbAnimationRenderer() {}
+    private ClimbPoseAligner() {}
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {

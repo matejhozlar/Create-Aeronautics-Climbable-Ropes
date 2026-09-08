@@ -598,5 +598,5 @@ If you are contributing to the mod and want to add a new option, add it to
 inside the appropriate `push()` / `pop()` group. Keep defaults that preserve
 existing behavior, document them here and in the README, and ensure new
 toggles short-circuit cleanly inside the relevant controller
-(`ClimbController`, `PlungerClimbController`, `PlungerZiplineController`).
+(`StrandClimbController`, `PlungerClimbController`, `PlungerZiplineController`).
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution flow.

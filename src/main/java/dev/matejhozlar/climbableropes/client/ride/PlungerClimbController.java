@@ -1,5 +1,6 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client.ride;
 
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.ryanhcode.sable.Sable;
@@ -39,7 +40,7 @@ final class PlungerClimbController {
 
     private PlungerClimbController() {}
 
-    static boolean isClimbing() {
+    static boolean isRiding() {
         return forwardPlunger != null;
     }
 
@@ -60,14 +61,15 @@ final class PlungerClimbController {
         slideVelocity = 0.0;
     }
 
-    static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
-        if (!justPressed) return;
+    static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
+        if (!justPressed) return false;
         Pair pair = findHoveredPair(mc, player);
-        if (pair == null) return;
+        if (pair == null) return false;
         embark(pair, mc, player);
+        return true;
     }
 
-    static void tickClimb(Minecraft mc, LocalPlayer player) {
+    static void tick(Minecraft mc, LocalPlayer player) {
         if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;
@@ -211,7 +213,7 @@ final class PlungerClimbController {
 
         if (!snapToEmbarkPoint(mc, player, posA, posB, dirAB, abLen)) return;
 
-        ClimbController.leaveActiveRides();
+        RopeRideDispatcher.leaveActiveRides();
 
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();

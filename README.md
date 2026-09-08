@@ -11,7 +11,7 @@
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
 </p>
 
-NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: hanging rope strands (vertical by default; the angle gate is configurable up to fully horizontal), and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
+NeoForge addon for [Create: Aeronautics](https://modrinth.com/mod/create-aeronautics), specifically the bundled Simulated physics module that handles ropes. Adds two empty-hand climb modes alongside Simulated's existing wrench-driven zipline system: hanging rope strands (any angle by default; the gate is configurable down to vertical-only), and plunger-fired ropes between paired `LaunchedPlungerEntity` projectiles.
 
 <p align="center">
   <img src="docs/images/climbable-ropes-1.jpg" alt="Player climbing a rope hanging from an airship at sunset" width="720">
@@ -28,8 +28,8 @@ All three modes below carry the player with the rope when it is attached to a mo
 ### Hanging rope strands
 
 - The player right-clicks a rope strand with an **empty main hand**.
-- A `ClientTickEvent.Post` handler (`ClimbController`) raycasts against rope strands using Simulated's own `ZiplineClientManager.raycastRope` helper.
-- If a strand within reach is hit and the segment is within `maxClimbAngleFromVertical` of vertical (default ~32°, configurable up to 90° for fully horizontal ropes), we record the rope UUID, send Simulated's `RopeRidingPacket` so the server treats the player as riding (no fall damage, hanging animation, etc.), and run per-tick physics.
+- A `ClientTickEvent.Post` handler (`RopeRideDispatcher`) routes the click to `StrandClimbController`, which runs its own closest-approach test against every strand segment and takes the nearest one that passes within `ropeHoverRadius` of the look ray, lies inside block-interaction range, and is not behind whatever block the crosshair already targets.
+- If a strand within reach is hit and the segment is within `maxClimbAngleFromVertical` of vertical (default 90°, so any angle; lower it to require near-vertical ropes), we record the rope UUID, send Simulated's `RopeRidingPacket` so the server treats the player as riding (no fall damage, hanging animation, etc.), and run per-tick physics.
 - Climb motion follows the local rope tangent rather than pure Y, with arc-length-based top/bottom limits and a 3D snap-pull, so diagonal and horizontal climbs feel natural.
 - Forward direction (W) is locked at embark: vertical-ish ropes use the higher-Y endpoint; for shallower ropes the player's look direction wins, so W follows how the player attached, not how the rope was placed.
 - W climbs up, S descends, sprint + S slides faster (smooth acceleration up, smooth coast back down). On near-horizontal ropes, slide acceleration scales with `|tangent.y|`, so a flat rope just travels at descend speed.
@@ -61,7 +61,7 @@ The extracted Simulated jar lands at `build/extracted-simulated/simulated.jar`; 
 
 ## Controls
 
-To grab on: look at a near-vertical rope strand or a plunger rope within block-interaction range, with an **empty main hand**, and right-click.
+To grab on: look at a rope strand or a plunger rope within block-interaction range, with an **empty main hand**, and right-click.
 
 While climbing:
 

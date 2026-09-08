@@ -1,6 +1,7 @@
-package dev.matejhozlar.climbableropes;
+package dev.matejhozlar.climbableropes.client.ride;
 
 import com.simibubi.create.AllTags;
+import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.ZiplineClientManager;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
@@ -50,14 +51,15 @@ final class PlungerZiplineController {
         groundedTimer = 0;
     }
 
-    static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
-        if (!justPressed) return;
+    static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
+        if (!justPressed) return false;
         PlungerClimbController.Pair pair = PlungerClimbController.findHoveredPair(mc, player);
-        if (pair == null) return;
+        if (pair == null) return false;
         embark(pair, mc, player);
+        return true;
     }
 
-    static void ridingTick(Minecraft mc, LocalPlayer player) {
+    static void tick(Minecraft mc, LocalPlayer player) {
         if (mc.isPaused()) return;
 
         if (!AllTags.AllItemTags.CHAIN_RIDEABLE.matches(player.getMainHandItem())) {
@@ -151,7 +153,7 @@ final class PlungerZiplineController {
 
     private static void embark(PlungerClimbController.Pair pair, Minecraft mc, LocalPlayer player) {
         if (isRidingPair(pair)) return;
-        ClimbController.leaveActiveRides();
+        RopeRideDispatcher.leaveActiveRides();
         plungerA = pair.a();
         plungerB = pair.b();
         groundedTimer = 0;
