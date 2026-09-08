@@ -28,7 +28,7 @@ All three modes below carry the player with the rope when it is attached to a mo
 ### Hanging rope strands
 
 - The player right-clicks a rope strand with an **empty main hand**.
-- A `ClientTickEvent.Post` handler (`RopeRideDispatcher`) routes the click to `StrandClimbController`, which runs its own closest-approach raycast over every strand segment within `ropeHoverRadius`.
+- A `ClientTickEvent.Post` handler (`RopeRideDispatcher`) routes the click to `StrandClimbController`, which runs its own closest-approach test against every strand segment and takes the nearest one that passes within `ropeHoverRadius` of the look ray, lies inside block-interaction range, and is not behind whatever block the crosshair already targets.
 - If a strand within reach is hit and the segment is within `maxClimbAngleFromVertical` of vertical (default 90°, so any angle; lower it to require near-vertical ropes), we record the rope UUID, send Simulated's `RopeRidingPacket` so the server treats the player as riding (no fall damage, hanging animation, etc.), and run per-tick physics.
 - Climb motion follows the local rope tangent rather than pure Y, with arc-length-based top/bottom limits and a 3D snap-pull, so diagonal and horizontal climbs feel natural.
 - Forward direction (W) is locked at embark: vertical-ish ropes use the higher-Y endpoint; for shallower ropes the player's look direction wins, so W follows how the player attached, not how the rope was placed.
