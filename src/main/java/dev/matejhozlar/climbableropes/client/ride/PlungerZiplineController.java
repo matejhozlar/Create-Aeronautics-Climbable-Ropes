@@ -36,13 +36,8 @@ final class PlungerZiplineController {
         return plungerA != null;
     }
 
-    private static boolean isRidingPair(PlungerClimbController.Pair pair) {
-        if (plungerA == null) return false;
-        int a = pair.a().getId();
-        int b = pair.b().getId();
-        int x = plungerA.getId();
-        int y = plungerB.getId();
-        return (a == x && b == y) || (a == y && b == x);
+    private static boolean isRidingPair(PlungerRope.Pair pair) {
+        return plungerA != null && pair.sameEnds(plungerA, plungerB);
     }
 
     static void reset() {
@@ -53,7 +48,7 @@ final class PlungerZiplineController {
 
     static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
         if (!justPressed) return false;
-        PlungerClimbController.Pair pair = PlungerClimbController.findHoveredPair(mc, player);
+        PlungerRope.Pair pair = PlungerRope.findHoveredPair(mc, player);
         if (pair == null) return false;
         embark(pair, mc, player);
         return true;
@@ -70,14 +65,13 @@ final class PlungerZiplineController {
             disembark();
             return;
         }
-        if (plungerA == null || plungerA.isRemoved() || !plungerA.isPlunged()
-                || plungerB == null || plungerB.isRemoved() || !plungerB.isPlunged()) {
+        if (!PlungerRope.isPlunged(plungerA) || !PlungerRope.isPlunged(plungerB)) {
             disembark();
             return;
         }
 
-        PlungerClimbController.RopeEnd endA = PlungerClimbController.ropeEnd(plungerA);
-        PlungerClimbController.RopeEnd endB = PlungerClimbController.ropeEnd(plungerB);
+        PlungerRope.RopeEnd endA = PlungerRope.ropeEnd(plungerA);
+        PlungerRope.RopeEnd endB = PlungerRope.ropeEnd(plungerB);
         Vec3 a = endA.position();
         Vec3 b = endB.position();
         Vec3 ab = b.subtract(a);
@@ -151,7 +145,7 @@ final class PlungerZiplineController {
         disembark();
     }
 
-    private static void embark(PlungerClimbController.Pair pair, Minecraft mc, LocalPlayer player) {
+    private static void embark(PlungerRope.Pair pair, Minecraft mc, LocalPlayer player) {
         if (isRidingPair(pair)) return;
         RopeRideDispatcher.leaveActiveRides();
         plungerA = pair.a();

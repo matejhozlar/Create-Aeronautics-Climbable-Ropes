@@ -3,8 +3,6 @@ package dev.matejhozlar.climbableropes.client.ride;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
-import dev.ryanhcode.sable.Sable;
-import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
 import dev.simulated_team.simulated.index.SimClickInteractions;
 import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
@@ -13,23 +11,15 @@ import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-
-import java.util.HashSet;
-import java.util.Set;
 
 final class PlungerClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     // Below this |y| threshold the rope is treated as horizontal (look-based forward).
     private static final double NEAR_HORIZONTAL_EPS = 0.05;
-    private static final double PLUNGER_END_OFFSET = 0.6;
     private static final double AT_END_ARC_EPSILON = 0.2;
 
     private static LaunchedPlungerEntity backwardPlunger;
@@ -44,13 +34,8 @@ final class PlungerClimbController {
         return forwardPlunger != null;
     }
 
-    private static boolean isRidingPair(Pair pair) {
-        if (forwardPlunger == null) return false;
-        int a = pair.a().getId();
-        int b = pair.b().getId();
-        int f = forwardPlunger.getId();
-        int k = backwardPlunger.getId();
-        return (a == f && b == k) || (a == k && b == f);
+    private static boolean isRidingPair(PlungerRope.Pair pair) {
+        return forwardPlunger != null && pair.sameEnds(forwardPlunger, backwardPlunger);
     }
 
     static void reset() {
@@ -63,7 +48,7 @@ final class PlungerClimbController {
 
     static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
         if (!justPressed) return false;
-        Pair pair = findHoveredPair(mc, player);
+        PlungerRope.Pair pair = PlungerRope.findHoveredPair(mc, player);
         if (pair == null) return false;
         embark(pair, mc, player);
         return true;
@@ -74,8 +59,7 @@ final class PlungerClimbController {
             disembark();
             return;
         }
-        if (backwardPlunger == null || backwardPlunger.isRemoved() || !backwardPlunger.isPlunged()
-                || forwardPlunger == null || forwardPlunger.isRemoved() || !forwardPlunger.isPlunged()) {
+        if (!PlungerRope.isPlunged(backwardPlunger) || !PlungerRope.isPlunged(forwardPlunger)) {
             disembark();
             return;
         }
@@ -97,8 +81,8 @@ final class PlungerClimbController {
             return;
         }
 
-        RopeEnd backEnd = ropeEnd(backwardPlunger);
-        RopeEnd fwdEnd = ropeEnd(forwardPlunger);
+        PlungerRope.RopeEnd backEnd = PlungerRope.ropeEnd(backwardPlunger);
+        PlungerRope.RopeEnd fwdEnd = PlungerRope.ropeEnd(forwardPlunger);
         Vec3 back = backEnd.position();
         Vec3 fwd = fwdEnd.position();
         Vec3 ab = fwd.subtract(back);
@@ -195,10 +179,10 @@ final class PlungerClimbController {
         }
     }
 
-    private static void embark(Pair pair, Minecraft mc, LocalPlayer player) {
+    private static void embark(PlungerRope.Pair pair, Minecraft mc, LocalPlayer player) {
         if (isRidingPair(pair)) return;
-        Vec3 posA = ropeEnd(pair.a()).position();
-        Vec3 posB = ropeEnd(pair.b()).position();
+        Vec3 posA = PlungerRope.ropeEnd(pair.a()).position();
+        Vec3 posB = PlungerRope.ropeEnd(pair.b()).position();
         Vec3 ab = posB.subtract(posA);
         double abLen = ab.length();
         if (abLen < 1e-4) return;
@@ -282,91 +266,6 @@ final class PlungerClimbController {
         ClimbAnimationController.onDisembark();
     }
 
-    static Pair findHoveredPair(Minecraft mc, LocalPlayer player) {
-        if (mc.level == null) return null;
-        double maxRange = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1;
-        Vec3 eye = player.getEyePosition();
-        Vec3 look = player.getLookAngle();
-        HitResult hitResult = mc.hitResult;
-        double blockDistSq = hitResult == null
-                ? maxRange * maxRange
-                : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation()).distanceToSqr(eye);
-
-        Set<Integer> seen = new HashSet<>();
-        Pair best = null;
-        double bestDepthSq = blockDistSq;
-        double radius = ClimbableRopesConfig.ROPE_HOVER_RADIUS.get();
-        double radiusSq = radius * radius;
-
-        for (Entity e : mc.level.entitiesForRendering()) {
-            if (!(e instanceof LaunchedPlungerEntity p)) continue;
-            if (!p.isPlunged() || seen.contains(p.getId())) continue;
-            LaunchedPlungerEntity other = p.getOther();
-            if (other == null || other.isRemoved() || !other.isPlunged()) continue;
-            seen.add(p.getId());
-            seen.add(other.getId());
-
-            Vec3 a = ropeEnd(p).position();
-            Vec3 b = ropeEnd(other).position();
-            RaySegHit hit = raySegmentHit(eye, look, maxRange, a, b);
-            if (hit == null) continue;
-            if (hit.lateralSq() > radiusSq) continue;
-            if (hit.depthSq() > bestDepthSq) continue;
-            bestDepthSq = hit.depthSq();
-            best = new Pair(p, other);
-        }
-        return best;
-    }
-
-    private record RaySegHit(double lateralSq, double depthSq) {}
-
-    private static RaySegHit raySegmentHit(Vec3 eye, Vec3 look, double maxLen, Vec3 a, Vec3 b) {
-        Vec3 segDir = b.subtract(a);
-        double segLen = segDir.length();
-        if (segLen < 1e-6) return null;
-        Vec3 segUnit = segDir.scale(1.0 / segLen);
-
-        double dotLD = look.dot(segUnit);
-        double denom = 1.0 - dotLD * dotLD;
-        Vec3 r = eye.subtract(a);
-        double rSeg = r.dot(segUnit);
-        double rLook = r.dot(look);
-
-        double s, t;
-        if (denom < 1e-9) {
-            s = 0.0;
-            t = rSeg;
-        } else {
-            s = (dotLD * rSeg - rLook) / denom;
-            t = (rSeg - dotLD * rLook) / denom;
-        }
-        s = Math.max(0.0, Math.min(maxLen, s));
-        t = Math.max(0.0, Math.min(segLen, t));
-
-        Vec3 onRay = eye.add(look.scale(s));
-        Vec3 onSeg = a.add(segUnit.scale(t));
-        double dx = onRay.x - onSeg.x;
-        double dy = onRay.y - onSeg.y;
-        double dz = onRay.z - onSeg.z;
-        return new RaySegHit(dx * dx + dy * dy + dz * dz, s * s);
-    }
-
-    record RopeEnd(Vec3 position, Vec3 velocity) {}
-
-    static RopeEnd ropeEnd(LaunchedPlungerEntity p) {
-        Vec3 local = ropeEndLocal(p, p.position());
-        Vec3 localPrev = ropeEndLocal(p, new Vec3(p.xo, p.yo, p.zo));
-        SubLevel sl = Sable.HELPER.getContainingClient(p.position());
-        if (sl == null) return new RopeEnd(local, local.subtract(localPrev));
-        Vec3 world = sl.logicalPose().transformPosition(local);
-        return new RopeEnd(world, world.subtract(sl.lastPose().transformPosition(localPrev)));
-    }
-
-    private static Vec3 ropeEndLocal(LaunchedPlungerEntity p, Vec3 pos) {
-        Direction dir = p.getData(LaunchedPlungerEntity.PLUNGED_DIRECTION);
-        return pos.add(Vec3.atLowerCornerOf(dir.getNormal()).scale(PLUNGER_END_OFFSET));
-    }
-
     private static Vec3 sideOffset(double yaw, Vec3 ropeDir) {
         double yawRad = Math.toRadians(yaw);
         Vec3 forward = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
@@ -380,6 +279,4 @@ final class PlungerClimbController {
         double chainYOffset = 0.5 * player.getScale();
         return player.position().add(0.0, player.getBoundingBox().getYsize() + chainYOffset, 0.0);
     }
-
-    record Pair(LaunchedPlungerEntity a, LaunchedPlungerEntity b) {}
 }
