@@ -8,7 +8,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
 final class PlungerClimbController {
-    private static final ClimbDrive drive = new ClimbDrive();
+    private static final ClimbDrive DRIVE = new ClimbDrive();
     private static LaunchedPlungerEntity backwardPlunger;
     private static LaunchedPlungerEntity forwardPlunger;
 
@@ -25,7 +25,7 @@ final class PlungerClimbController {
     static void reset() {
         backwardPlunger = null;
         forwardPlunger = null;
-        drive.reset();
+        DRIVE.reset();
     }
 
     static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
@@ -46,14 +46,14 @@ final class PlungerClimbController {
             return;
         }
 
-        ClimbDrive.Input input = ClimbDrive.Input.read(mc);
+        ClimbDrive.Keys keys = ClimbDrive.Keys.read(mc);
 
-        if (input.jump()) {
+        if (keys.jump()) {
             RopeRide.jumpOff(player);
             disembark();
             return;
         }
-        if (input.dismount()) {
+        if (keys.dismount()) {
             disembark();
             return;
         }
@@ -81,13 +81,14 @@ final class PlungerClimbController {
         }
 
         Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
-        if (drive.groundedAtBottomTooLong(player.onGround(), input.up(), anchor.y, lowerEnd.y)) {
+        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), anchor.y, lowerEnd.y)) {
             disembark();
             return;
         }
 
         double remainingUp = Math.max(0.0, abLen - t);
-        ClimbDrive.Step step = drive.step(input, player.onGround(), dir, remainingUp, t);
+        ClimbDrive.Step step = DRIVE.step(keys, player.onGround(), Math.abs(dir.y),
+                new ClimbDrive.Remaining(remainingUp, t));
 
         Vec3 ropeVel = backEnd.velocity().lerp(fwdEnd.velocity(), t / abLen);
         ClimbPhysics.applyClimbVelocity(player, anchor, ropeWorld, dir, step.speedAlong(), ropeVel);
@@ -110,7 +111,7 @@ final class PlungerClimbController {
         RopeRideDispatcher.leaveActiveRides();
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();
-        drive.reset();
+        DRIVE.reset();
 
         RopeRide.stopFlight(player);
         player.setDeltaMovement(Vec3.ZERO);

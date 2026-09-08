@@ -18,7 +18,7 @@ final class StrandClimbController {
     // cannot hold a grounded player on a near-horizontal rope, so they can walk off the end.
     private static final double END_OVERSHOOT_LIMIT = 0.4;
 
-    private static final ClimbDrive drive = new ClimbDrive();
+    private static final ClimbDrive DRIVE = new ClimbDrive();
     private static UUID climbingRope = null;
     private static boolean forwardIsLast = true;
     private static double prevEndOvershoot = 0.0;
@@ -33,7 +33,7 @@ final class StrandClimbController {
         climbingRope = null;
         forwardIsLast = true;
         prevEndOvershoot = 0.0;
-        drive.reset();
+        DRIVE.reset();
     }
 
     static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
@@ -81,7 +81,7 @@ final class StrandClimbController {
         RopeRideDispatcher.leaveActiveRides();
         climbingRope = rope;
         prevEndOvershoot = 0.0;
-        drive.reset();
+        DRIVE.reset();
         forwardIsLast = computeForwardIsLast(mc, player, rope);
 
         RopeRide.stopFlight(player);
@@ -133,7 +133,7 @@ final class StrandClimbController {
             return;
         }
 
-        ClimbDrive.Input input = ClimbDrive.Input.read(mc);
+        ClimbDrive.Keys keys = ClimbDrive.Keys.read(mc);
 
         Vec3 firstPoint = JOMLConversion.toMojang(strand.getPoints().getFirst().position());
         Vec3 lastPoint = JOMLConversion.toMojang(strand.getPoints().getLast().position());
@@ -158,7 +158,7 @@ final class StrandClimbController {
         double arcRemainingBackward = Math.max(0.0, sTotal - arcRemainingForward);
         double arcRemainingToTop = Math.max(0.0, topIsLast ? sTotal - sFromIndex0 : sFromIndex0);
 
-        if (input.jump()) {
+        if (keys.jump()) {
             if (ClimbableRopesConfig.ALLOW_BLOCK_MANTLE.get()) {
                 boolean atTop = arcRemainingToTop <= 0.1
                     || (player.verticalCollision && !player.onGround() && anchor.y >= topPoint.y - 0.5);
@@ -168,18 +168,18 @@ final class StrandClimbController {
             disembark();
             return;
         }
-        if (input.dismount()) {
+        if (keys.dismount()) {
             disembark();
             return;
         }
 
-        if (drive.groundedAtBottomTooLong(player.onGround(), input.up(), anchor.y, bottomPoint.y)) {
+        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), anchor.y, bottomPoint.y)) {
             disembark();
             return;
         }
 
-        ClimbDrive.Step step = drive.step(input, player.onGround(), forwardAlongStrand,
-                arcRemainingForward, arcRemainingBackward);
+        ClimbDrive.Step step = DRIVE.step(keys, player.onGround(), Math.abs(forwardAlongStrand.y),
+                new ClimbDrive.Remaining(arcRemainingForward, arcRemainingBackward));
 
         boolean overshootGrowing = sq.endOvershoot >= prevEndOvershoot;
         prevEndOvershoot = sq.endOvershoot;

@@ -15,7 +15,7 @@ final class ClimbPhysics {
 
     private ClimbPhysics() {}
 
-    static double anchorHeight(LocalPlayer player) {
+    private static double anchorHeight(LocalPlayer player) {
         return player.getBoundingBox().getYsize() + 0.5 * player.getScale();
     }
 
@@ -33,21 +33,17 @@ final class ClimbPhysics {
     }
 
     static boolean snapToRope(Minecraft mc, LocalPlayer player, Vec3 ropePoint, Vec3 bottom) {
-        double targetY;
-        if (ropePoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR) {
-            ropePoint = bottom;
-            targetY = bottom.y;
-        } else {
-            targetY = ropePoint.y - anchorHeight(player);
-        }
+        boolean atBottom = ropePoint.distanceToSqr(bottom) < AT_BOTTOM_DIST_SQR;
+        Vec3 snapPoint = atBottom ? bottom : ropePoint;
+        double targetY = atBottom ? bottom.y : ropePoint.y - anchorHeight(player);
 
         double yawRad = Math.toRadians(player.getYRot());
         Vec3 offsetTarget = new Vec3(
-                ropePoint.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
+                snapPoint.x + Math.sin(yawRad) * CLIMB_SIDE_OFFSET,
                 targetY,
-                ropePoint.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
+                snapPoint.z - Math.cos(yawRad) * CLIMB_SIDE_OFFSET);
         if (tryPlace(mc, player, offsetTarget)) return true;
-        return tryPlace(mc, player, new Vec3(ropePoint.x, targetY, ropePoint.z));
+        return tryPlace(mc, player, new Vec3(snapPoint.x, targetY, snapPoint.z));
     }
 
     static boolean tryPlace(Minecraft mc, LocalPlayer player, Vec3 target) {

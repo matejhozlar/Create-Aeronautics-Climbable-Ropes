@@ -3,7 +3,6 @@ package dev.matejhozlar.climbableropes.client.ride;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController.ClimbState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.phys.Vec3;
 
 final class ClimbDrive {
     private static final double AT_END_ARC_EPSILON = 0.2;
@@ -12,9 +11,9 @@ final class ClimbDrive {
     private boolean parkedAtBottom;
     private double slideVelocity;
 
-    record Input(boolean up, boolean down, boolean sprint, boolean dismount, boolean jump) {
-        static Input read(Minecraft mc) {
-            return new Input(
+    record Keys(boolean up, boolean down, boolean sprint, boolean dismount, boolean jump) {
+        static Keys read(Minecraft mc) {
+            return new Keys(
                     mc.options.keyUp.isDown(),
                     mc.options.keyDown.isDown(),
                     mc.options.keySprint.isDown(),
@@ -22,6 +21,8 @@ final class ClimbDrive {
                     mc.options.keyJump.isDown());
         }
     }
+
+    record Remaining(double forward, double backward) {}
 
     record Step(double speedAlong, ClimbState animState) {}
 
@@ -39,11 +40,11 @@ final class ClimbDrive {
         return false;
     }
 
-    Step step(Input input, boolean onGround, Vec3 forward, double remainingForward, double remainingBackward) {
-        boolean climbUp = input.up() && remainingForward > 0.0;
+    Step step(Keys keys, boolean onGround, double verticalComponent, Remaining remaining) {
+        boolean climbUp = keys.up() && remaining.forward() > 0.0;
         // onGround and the arc test both flicker per tick, so they latch this rather than gating descent live.
         if (climbUp) parkedAtBottom = false;
-        else if (remainingBackward <= AT_END_ARC_EPSILON || onGround) parkedAtBottom = true;
+        else if (remaining.backward() <= AT_END_ARC_EPSILON || onGround) parkedAtBottom = true;
         boolean descentBlocked = parkedAtBottom;
 
         double climbSpeed = ClimbableRopesConfig.CLIMB_SPEED.get();
@@ -52,8 +53,7 @@ final class ClimbDrive {
         double slideAccel = ClimbableRopesConfig.SLIDE_ACCELERATION.get();
         double slideDecel = ClimbableRopesConfig.SLIDE_DECELERATION.get();
 
-        double verticalComponent = Math.abs(forward.y);
-        boolean slideEffective = input.down() && input.sprint() && !descentBlocked
+        boolean slideEffective = keys.down() && keys.sprint() && !descentBlocked
                 && slideSpeed * verticalComponent > descendSpeed;
         if (climbUp || descentBlocked) {
             slideVelocity = 0.0;
@@ -65,13 +65,13 @@ final class ClimbDrive {
         }
 
         double speedAlong;
-        if (climbUp) speedAlong = Math.min(climbSpeed, remainingForward);
+        if (climbUp) speedAlong = Math.min(climbSpeed, remaining.forward());
         else if (descentBlocked) speedAlong = 0.0;
         else if (slideVelocity > descendSpeed) speedAlong = -slideVelocity;
-        else if (input.down()) speedAlong = -descendSpeed;
+        else if (keys.down()) speedAlong = -descendSpeed;
         else if (slideVelocity > 0) speedAlong = -slideVelocity;
         else speedAlong = 0.0;
-        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, remainingBackward);
+        if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, remaining.backward());
 
         ClimbState animState;
         if (climbUp) animState = ClimbState.CLIMB_UP;
