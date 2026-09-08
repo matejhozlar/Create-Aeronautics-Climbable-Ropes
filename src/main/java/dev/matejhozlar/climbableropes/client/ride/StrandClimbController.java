@@ -1,7 +1,5 @@
 package dev.matejhozlar.climbableropes.client.ride;
 
-import com.simibubi.create.AllTags;
-import dev.matejhozlar.climbableropes.ClimbableRopes;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
@@ -16,7 +14,6 @@ import dev.simulated_team.simulated.network.packets.RopeRidingPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -25,17 +22,10 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 
 import java.util.UUID;
 
-@EventBusSubscriber(modid = ClimbableRopes.MODID, value = Dist.CLIENT)
-public final class ClimbController {
+final class StrandClimbController {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     // Below this |y| threshold the rope is treated as horizontal (look-based forward).
@@ -50,91 +40,29 @@ public final class ClimbController {
     private static int bottomGroundedTimer = 0;
     private static boolean parkedAtBottom = false;
     private static double prevEndOvershoot = 0.0;
-    private static boolean prevUseDown = false;
     private static double slideVelocity = 0.0;
 
-    private ClimbController() {}
+    private StrandClimbController() {}
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onClientTick(ClientTickEvent.Post event) {
-        Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        if (player == null || mc.level == null) {
-            climbingRope = null;
-            forwardIsLast = true;
-            bottomGroundedTimer = 0;
-            parkedAtBottom = false;
-            prevEndOvershoot = 0.0;
-            prevUseDown = false;
-            slideVelocity = 0.0;
-            PlungerClimbController.reset();
-            PlungerZiplineController.reset();
-            ClimbAnimationController.reset();
-            return;
-        }
-        if (mc.isPaused()) return;
-
-        ClimbableRopesKeybinds.update(player);
-
-        boolean useDown = mc.options.keyUse.isDown();
-        boolean justPressed = useDown && !prevUseDown;
-        prevUseDown = useDown;
-
-        if (climbingRope != null || PlungerClimbController.isClimbing() || PlungerZiplineController.isRiding()) {
-            if (justPressed) tryHoverEmbark(mc, player, true);
-            tickActiveRide(mc, player);
-            return;
-        }
-
-        if (ZiplineClientManager.ridingRope != null) return;
-
-        tryHoverEmbark(mc, player, justPressed);
+    static boolean isClimbing() {
+        return climbingRope != null;
     }
 
-    @SubscribeEvent
-    public static void onMovementInput(MovementInputUpdateEvent event) {
-        // While climbing, the mod fully drives movement through setDeltaMovement. Vanilla walk input
-        // (faster with sprint) would otherwise leak through and let the player walk off the rope.
-        // The zipline mode is excluded: it intentionally rides on vanilla WASD movement.
-        if (climbingRope == null && !PlungerClimbController.isClimbing()) return;
-        Input input = event.getInput();
-        input.forwardImpulse = 0.0F;
-        input.leftImpulse = 0.0F;
-        input.up = false;
-        input.down = false;
-        input.left = false;
-        input.right = false;
+    static void reset() {
+        climbingRope = null;
+        forwardIsLast = true;
+        bottomGroundedTimer = 0;
+        parkedAtBottom = false;
+        prevEndOvershoot = 0.0;
+        slideVelocity = 0.0;
     }
 
-    private static void tickActiveRide(Minecraft mc, LocalPlayer player) {
-        if (climbingRope != null) tickClimb(mc, player);
-        else if (PlungerClimbController.isClimbing()) PlungerClimbController.tickClimb(mc, player);
-        else if (PlungerZiplineController.isRiding()) PlungerZiplineController.ridingTick(mc, player);
-    }
-
-    private static void tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
-        if (AllTags.AllItemTags.CHAIN_RIDEABLE.matches(player.getMainHandItem())) {
-            if (!player.isShiftKeyDown() && ClimbableRopesConfig.ALLOW_PLUNGER_ZIPLINE.get()) {
-                PlungerZiplineController.tryHoverEmbark(mc, player, justPressed);
-            }
-            return;
-        }
-
-        if (!player.getMainHandItem().isEmpty()) return;
-        if (player.isShiftKeyDown()) return;
-
-        if (ClimbableRopesConfig.ALLOW_VERTICAL_ROPE_CLIMBING.get()) {
-            UUID hovered = findVerticalHover(mc, player);
-            if (hovered != null) {
-                ZiplineClientManager.hoveringRope = hovered;
-                if (justPressed) embark(hovered, mc, player);
-                return;
-            }
-        }
-
-        if (ClimbableRopesConfig.ALLOW_PLUNGER_CLIMBING.get()) {
-            PlungerClimbController.tryHoverEmbark(mc, player, justPressed);
-        }
+    static boolean tryHoverEmbark(Minecraft mc, LocalPlayer player, boolean justPressed) {
+        UUID hovered = findVerticalHover(mc, player);
+        if (hovered == null) return false;
+        ZiplineClientManager.hoveringRope = hovered;
+        if (justPressed) embark(hovered, mc, player);
+        return true;
     }
 
     private static UUID findVerticalHover(Minecraft mc, LocalPlayer player) {
@@ -206,7 +134,7 @@ public final class ClimbController {
 
     private static void embark(UUID rope, Minecraft mc, LocalPlayer player) {
         if (rope.equals(climbingRope)) return;
-        leaveActiveRides();
+        RopeRideDispatcher.leaveActiveRides();
         climbingRope = rope;
         bottomGroundedTimer = 0;
         parkedAtBottom = false;
@@ -272,25 +200,13 @@ public final class ClimbController {
         }
     }
 
-    private static void disembark() {
+    static void disembark() {
         if (climbingRope == null) return;
         VeilPacketManager.server().sendPacket(new RopeRidingPacket(climbingRope, true));
-        climbingRope = null;
-        forwardIsLast = true;
-        bottomGroundedTimer = 0;
-        parkedAtBottom = false;
-        prevEndOvershoot = 0.0;
-        slideVelocity = 0.0;
-
+        reset();
         Minecraft.getInstance().getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 0.75f, 0.35f));
         ClimbAnimationController.onDisembark();
-    }
-
-    static void leaveActiveRides() {
-        disembark();
-        PlungerClimbController.disembark();
-        PlungerZiplineController.disembark();
     }
 
     private static boolean computeForwardIsLast(Minecraft mc, LocalPlayer player, UUID rope) {
@@ -307,7 +223,7 @@ public final class ClimbController {
         return player.getLookAngle().dot(chordDir) >= 0;
     }
 
-    private static void tickClimb(Minecraft mc, LocalPlayer player) {
+    static void tickClimb(Minecraft mc, LocalPlayer player) {
         if (player.getAbilities().flying || !player.getMainHandItem().isEmpty() || SimClickInteractions.HANDLE_HANDLER.isActive()) {
             disembark();
             return;

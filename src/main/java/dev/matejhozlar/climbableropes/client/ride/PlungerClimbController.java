@@ -212,7 +212,7 @@ final class PlungerClimbController {
 
         if (!snapToEmbarkPoint(mc, player, posA, posB, dirAB, abLen)) return;
 
-        ClimbController.leaveActiveRides();
+        RopeRideDispatcher.leaveActiveRides();
 
         forwardPlunger = forwardIsB ? pair.b() : pair.a();
         backwardPlunger = forwardIsB ? pair.a() : pair.b();

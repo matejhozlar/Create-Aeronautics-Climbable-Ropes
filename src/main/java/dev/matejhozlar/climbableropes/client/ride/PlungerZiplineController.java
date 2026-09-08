@@ -152,7 +152,7 @@ final class PlungerZiplineController {
 
     private static void embark(PlungerClimbController.Pair pair, Minecraft mc, LocalPlayer player) {
         if (isRidingPair(pair)) return;
-        ClimbController.leaveActiveRides();
+        RopeRideDispatcher.leaveActiveRides();
         plungerA = pair.a();
         plungerB = pair.b();
         groundedTimer = 0;
