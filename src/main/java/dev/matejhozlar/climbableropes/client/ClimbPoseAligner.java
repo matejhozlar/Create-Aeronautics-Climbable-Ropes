@@ -3,6 +3,7 @@ package dev.matejhozlar.climbableropes.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.matejhozlar.climbableropes.ClimbableRopes;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
+import dev.matejhozlar.climbableropes.client.rig.ClimbRigs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -33,44 +34,18 @@ public final class ClimbPoseAligner {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
-        if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) return;
+        if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get() || ClimbRigs.isSuppressed()) return;
 
         Player entity = event.getEntity();
-        UUID id = entity.getUUID();
-
-        Vec3 target = WORLD_UP;
-        Vec3 tangent = tangentFor(entity);
-        if (tangent != null && tangent.lengthSqr() > 1.0e-8) {
-            Vec3 dir = tangent.normalize();
-            target = dir.y < 0.0 ? dir.scale(-1.0) : dir;
-        }
-
-        Vec3 aligned = lerp(ALIGNED_UP.getOrDefault(id, WORLD_UP), target, ALIGN_SMOOTHING);
-        double len = aligned.length();
-        if (len < 1.0e-6) {
-            ALIGNED_UP.remove(id);
-            return;
-        }
-        aligned = aligned.scale(1.0 / len);
-        if (aligned.distanceToSqr(WORLD_UP) < 1.0e-6) {
-            ALIGNED_UP.remove(id);
-            return;
-        }
-        ALIGNED_UP.put(id, aligned);
-
-        double pivotY = entity.getBoundingBox().getYsize() + 0.5 * entity.getScale();
+        Quaternionf align = updateAlignment(entity);
         PoseStack pose = event.getPoseStack();
-        pose.pushPose();
-        pose.translate(0.0, pivotY, 0.0);
-        pose.mulPose(new Quaternionf().rotateTo(
-                0.0f, 1.0f, 0.0f,
-                (float) aligned.x, (float) aligned.y, (float) aligned.z));
-        pose.translate(0.0, -pivotY, 0.0);
-        TRANSFORMED.add(id);
+        if (!ClimbRigs.placeBody(entity, event.getPartialTick(), align, pose)) return;
+        TRANSFORMED.add(entity.getUUID());
     }
 
     @SubscribeEvent
     public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
+        ClimbRigs.clearBends(event.getRenderer().getModel());
         if (TRANSFORMED.remove(event.getEntity().getUUID())) {
             event.getPoseStack().popPose();
         }
@@ -86,6 +61,32 @@ public final class ClimbPoseAligner {
         }
         ALIGNED_UP.keySet().removeIf(id -> mc.level.getPlayerByUUID(id) == null);
         TRANSFORMED.clear();
+    }
+
+    private static Quaternionf updateAlignment(Player entity) {
+        UUID id = entity.getUUID();
+        Vec3 target = WORLD_UP;
+        Vec3 tangent = tangentFor(entity);
+        if (tangent != null && tangent.lengthSqr() > 1.0e-8) {
+            Vec3 dir = tangent.normalize();
+            target = dir.y < 0.0 ? dir.scale(-1.0) : dir;
+        }
+
+        Vec3 aligned = lerp(ALIGNED_UP.getOrDefault(id, WORLD_UP), target, ALIGN_SMOOTHING);
+        double len = aligned.length();
+        if (len < 1.0e-6) {
+            ALIGNED_UP.remove(id);
+            return null;
+        }
+        aligned = aligned.scale(1.0 / len);
+        if (aligned.distanceToSqr(WORLD_UP) < 1.0e-6) {
+            ALIGNED_UP.remove(id);
+            return null;
+        }
+        ALIGNED_UP.put(id, aligned);
+        return new Quaternionf().rotateTo(
+                0.0f, 1.0f, 0.0f,
+                (float) aligned.x, (float) aligned.y, (float) aligned.z);
     }
 
     private static Vec3 tangentFor(Player entity) {

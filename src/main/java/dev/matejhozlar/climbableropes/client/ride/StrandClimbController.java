@@ -195,7 +195,7 @@ final class StrandClimbController {
                 ? lastPoint.subtract(firstPoint)
                 : firstPoint.subtract(lastPoint);
         Vec3 animForward = ropeChord.lengthSqr() > 1.0e-8 ? ropeChord.normalize() : forwardAlongStrand;
-        ClimbAnimationController.onTick(animForward, step.animState());
+        ClimbAnimationController.onTick(animForward, ropeWorld, step.animState());
 
         RopeRide.keepAlive(climbingRope);
     }

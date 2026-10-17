@@ -101,12 +101,12 @@ public final class ClimbableRopesConfig {
                 .defineInRange("ropeHoverRadius", 4.0 / 16.0, 0.0, 2.0);
         b.pop();
 
-        c.comment("Player climb animation playback (KosmX playerAnimator layer).").push("animation");
+        c.comment("Procedural player climb animation.").push("animation");
         ENABLE_CLIMB_ANIMATION = c
-                .comment("Play the rope-climb animations on your local player while attached to a rope.")
+                .comment("Pose climbing players (you and others) with the procedural rope-climb animation.")
                 .define("enableClimbAnimation", true);
         ANIMATION_SPEED_MULTIPLIER = c
-                .comment("Playback speed multiplier for the climb animations. 1.0 is authored speed.")
+                .comment("Multiplier for how fast the hands and feet cycle while climbing. 1.0 is the default cadence.")
                 .defineInRange("animationSpeedMultiplier", 1.0, 0.1, 5.0);
         c.pop();
 
