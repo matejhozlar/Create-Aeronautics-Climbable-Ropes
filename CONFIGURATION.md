@@ -101,11 +101,11 @@ written into the file automatically. A fresh default file looks like this:
 	#Range: 0.0 ~ 2.0
 	ropeHoverRadius = 0.25
 
-# Player climb animation playback (KosmX playerAnimator layer).
+# Procedural player climb animation.
 [animation]
-	#Play the rope-climb animations on your local player while attached to a rope.
+	#Pose climbing players (you and others) with the procedural rope-climb animation.
 	enableClimbAnimation = true
-	#Playback speed multiplier for the climb animations. 1.0 is authored speed.
+	#Multiplier for how fast the hands and feet cycle while climbing. 1.0 is the default cadence.
 	#Range: 0.1 ~ 5.0
 	animationSpeedMultiplier = 1.0
 ```
@@ -432,49 +432,43 @@ dense rope scenes; `0` requires a pixel-perfect hit on the rope's centerline.
 
 ## `[animation]`
 
-These keys control the climb animation layer driven by
-[KosmX's Player Animator](https://modrinth.com/mod/player-animator). The
-animation is client-side rendering, but climb state is synced between clients,
-so other players see the same animations rather than the vanilla rope-riding
-hang pose.
-
-The Player Animator library is MIT-licensed and bundled inside Climbable Ropes
-via jar-in-jar, so it does not need to be installed separately. If a standalone
-copy is also present, NeoForge loads whichever version is newer.
+These keys control the procedural climb animation. It is client-side
+rendering, but climb state is synced between clients, so other players see the
+same motion rather than the vanilla rope-riding hang pose. No animation library
+is required.
 
 ### `enableClimbAnimation`
 
 - **Type:** boolean
 - **Default:** `true`
 
-Master switch for the climb animation layer. The custom animations only play
-on **vertical-ish ropes** (within 45 degrees of vertical). With `true`,
-embarking such a rope adds an animation layer at priority 40 on top of the
-vanilla player model and plays:
+Master switch for the climb animation. The custom pose only shows on
+**vertical-ish ropes** (within 45 degrees of vertical). With `true`, a climbing
+player is posed every frame from their climb state:
 
-- `climb_up.json` (hand-over-hand overhead reach) while holding `Forward` (W).
-- `descend.json` (lower-amplitude descent) while holding `Back` (S) or
-  coasting from a slide.
-- `slide.json` (a static braced grip pose, no limb motion) while the slide is
-  active above `descendSpeed`.
-- `idle.json` (a casual one-handed hang with a slow lazy pendulum sway)
-  while resting on the rope without input.
+- **Climbing up** (`Forward`, W): hand-over-hand. Each hand grips a fixed point
+  on the rope and stays there while the body rises past it, then lets go and
+  reaches overhead for the next grip. One hand always holds the rope. The legs
+  step in a diagonal rhythm with the arms and the torso twists into each reach.
+- **Climbing down** (`Back`, S): the same cycle in reverse, hand under hand,
+  with a calmer leg motion.
+- **Sliding**: both hands overhead on the rope with the feet locked around it,
+  braced, with a slight friction shudder.
+- **Idle**: the hands stay where they last gripped and the feet wrap the rope.
+  The body breathes and sways gently.
 
-While climbing a vertical-ish rope, the whole local player model is also
-rotated to follow the rope's angle, easing in and out, so the animations
-stay aligned with the rope. This is a client-side visual only; the collision
-hitbox stays upright.
+Arms and legs are placed with two-bone IK, so elbows and knees bend. The skin,
+its outer layer and any armor bend together. The whole body hangs from its top
+grip like a pendulum: it swings when the rope or the airship it hangs from
+accelerates, and is tilted to follow the rope's angle. This is a client-side
+visual only; the collision hitbox stays upright.
 
 On ropes flatter than 45 degrees, and while riding a plunger zipline, no
-custom animation plays: instead the player keeps Create's chain-conveyor
-hanging pose (which Climbable Ropes otherwise suppresses). The overhead
-climbing reach is not authored for near-horizontal ropes, so Create's pose
-is used there as a fitting fallback.
+custom pose is shown: instead the player keeps Create's chain-conveyor
+hanging pose (which Climbable Ropes otherwise suppresses).
 
-With `false`, the layer is removed on the next embark/tick (and never added
-until the value is flipped back). Create's hanging pose is then used on every
-rope. Toggling the value mid-climb is supported: the next animation tick
-checks the flag and either re-adds or removes the layer cleanly.
+With `false`, Create's hanging pose is used on every rope, for you and for
+other players as seen from your client.
 
 ### `animationSpeedMultiplier`
 
@@ -482,10 +476,11 @@ checks the flag and either re-adds or removes the layer cleanly.
 - **Default:** `1.0`
 - **Range:** `0.1` to `5.0`
 
-Multiplies playback speed of the animation. `0.5` is half-speed (lazy),
-`2.0` doubles the limb cadence (frantic). Useful if you have very high
-`climbSpeed` or `slideSpeed` values and the authored cadence looks too slow
-for the on-screen travel.
+Multiplies how fast the hands and feet cycle for a given climb speed. Below
+about 0.08 blocks per tick the gripping hands stay perfectly still on the rope
+at `1.0`; faster climbs cap the cadence so the hands do not blur, and the grip
+slips a little instead. `0.5` halves the cadence (long, slow pulls), `2.0`
+doubles it.
 
 This does not retime the underlying physics, only the visual animation.
 
