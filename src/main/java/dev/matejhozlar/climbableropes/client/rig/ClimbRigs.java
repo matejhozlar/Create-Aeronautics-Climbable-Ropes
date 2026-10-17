@@ -38,6 +38,7 @@ public final class ClimbRigs {
     private static final float SHRUG_FORWARD = 1.0F;
     // Feet only half follow the body sway: they hang off the rope rather than being clamped to it.
     private static final float FOOT_ROPE_FOLLOW = 0.5F;
+    private static final float STANDING_FOOT_Y = 23.5F;
     private static final float MAX_ROPE_CORRECTION = 0.25F;
     private static final float MAX_HEAD_YAW = (float) Math.toRadians(75.0);
     private static final Vector3f PIVOT = new Vector3f(0.0F, ClimbRig.PIVOT_Y, ClimbRig.ROPE_Z);
@@ -114,7 +115,8 @@ public final class ClimbRigs {
         Vector3f lift = new Vector3f();
         if (pose != null) {
             float w = pose.weight();
-            Quaternionf worldSway = new Quaternionf(toWorld).mul(pose.sway()).mul(new Quaternionf(toWorld).conjugate());
+            Quaternionf worldSway = new Quaternionf(toWorld).mul(bodyRotation(pose))
+                    .mul(new Quaternionf(toWorld).conjugate());
             sway.slerp(worldSway, w);
             toWorld.transform(lift.set(0.0F, -pose.lift(), 0.0F)).mul(scale * w);
             Vec3 offset = pose.ropeOffset();
@@ -145,7 +147,9 @@ public final class ClimbRigs {
         if (pose == null) return;
         float w = pose.weight();
 
+        Quaternionf unbody = bodyRotation(pose).conjugate();
         Quaternionf unsway = new Quaternionf(pose.sway()).conjugate();
+        Quaternionf unlean = new Quaternionf().rotationX(-pose.lean());
         Vector3f lift = new Vector3f(0.0F, -pose.lift(), 0.0F);
 
         model.head.xRot += pose.headPitch() * w;
@@ -155,10 +159,10 @@ public final class ClimbRigs {
         float twist = pose.twist();
         blend(model.body, 0.0F, 0.0F, 0.0F, 0.0F, twist, 0.0F, w);
 
-        poseArm(model.rightArm, toModel(pose.handR(), unsway, lift, 1.0F), twist, pose.breath(), w);
-        poseArm(model.leftArm, toModel(pose.handL(), unsway, lift, 1.0F), twist, pose.breath(), w);
-        poseLeg(model.rightLeg, toModel(pose.footR(), unsway, lift, FOOT_ROPE_FOLLOW), w);
-        poseLeg(model.leftLeg, toModel(pose.footL(), unsway, lift, FOOT_ROPE_FOLLOW), w);
+        poseArm(model.rightArm, toModel(pose.handR(), unbody, lift), twist, pose.breath(), w);
+        poseArm(model.leftArm, toModel(pose.handL(), unbody, lift), twist, pose.breath(), w);
+        poseLeg(model.rightLeg, footToModel(pose.footR(), unsway, unlean, lift), pose.grounded(), w);
+        poseLeg(model.leftLeg, footToModel(pose.footL(), unsway, unlean, lift), pose.grounded(), w);
     }
 
     public static void clearBends(PlayerModel<?> model) {
@@ -172,11 +176,18 @@ public final class ClimbRigs {
         setBend(model.leftPants, null);
     }
 
-    private static Vector3f toModel(Vector3f ropeFrame, Quaternionf unsway, Vector3f lift, float follow) {
-        Vector3f swayed = new Vector3f(ropeFrame).sub(PIVOT);
-        unsway.transform(swayed);
-        swayed.add(PIVOT);
-        return new Vector3f(ropeFrame).lerp(swayed, follow).sub(lift);
+    private static Quaternionf bodyRotation(ClimbRig.Pose pose) {
+        return new Quaternionf(pose.sway()).rotateX(pose.lean());
+    }
+
+    private static Vector3f toModel(Vector3f ropeFrame, Quaternionf unbody, Vector3f lift) {
+        return unbody.transform(new Vector3f(ropeFrame).sub(PIVOT)).add(PIVOT).sub(lift);
+    }
+
+    private static Vector3f footToModel(Vector3f ropeFrame, Quaternionf unsway, Quaternionf unlean, Vector3f lift) {
+        Vector3f fromPivot = new Vector3f(ropeFrame).sub(PIVOT);
+        Vector3f swayed = unsway.transform(new Vector3f(fromPivot));
+        return unlean.transform(fromPivot.lerp(swayed, FOOT_ROPE_FOLLOW)).add(PIVOT).sub(lift);
     }
 
     private static void poseArm(ModelPart arm, Vector3f target, float twist, float breath, float w) {
@@ -194,11 +205,11 @@ public final class ClimbRigs {
         setBend(arm, new LimbBend(ARM_JOINT, ik.bend() * w));
     }
 
-    private static void poseLeg(ModelPart leg, Vector3f target, float w) {
+    private static void poseLeg(ModelPart leg, Vector3f target, float grounded, float w) {
         PartPose rest = leg.getInitialPose();
-        float side = Math.signum(rest.x);
         Vector3f pivot = new Vector3f(rest.x, rest.y, rest.z);
-        Vector3f pole = new Vector3f(side * 0.3F, 0.0F, -1.0F).normalize();
+        target.lerp(new Vector3f(rest.x, STANDING_FOOT_Y, rest.z), grounded);
+        Vector3f pole = new Vector3f(0.0F, 0.0F, -1.0F);
         LimbIk.Solution ik = LimbIk.solve(pivot, centerX(leg), target, LEG_UPPER, LEG_LOWER, pole, 1.0F);
         blend(leg, pivot.x, pivot.y, pivot.z, ik.xRot(), ik.yRot(), ik.zRot(), w);
         setBend(leg, new LimbBend(LEG_JOINT, ik.bend() * w));
