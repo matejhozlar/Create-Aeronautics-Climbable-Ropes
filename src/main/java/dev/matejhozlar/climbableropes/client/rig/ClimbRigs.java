@@ -36,8 +36,6 @@ public final class ClimbRigs {
     private static final float SHRUG_UP = 1.5F;
     private static final float SHRUG_IN = 1.0F;
     private static final float SHRUG_FORWARD = 1.0F;
-    // Feet only half follow the body sway: they hang off the rope rather than being clamped to it.
-    private static final float FOOT_ROPE_FOLLOW = 0.5F;
     private static final float STANDING_FOOT_Y = 23.5F;
     private static final float MAX_ROPE_CORRECTION = 0.25F;
     private static final float MAX_HEAD_YAW = (float) Math.toRadians(75.0);
@@ -148,8 +146,6 @@ public final class ClimbRigs {
         float w = pose.weight();
 
         Quaternionf unbody = bodyRotation(pose).conjugate();
-        Quaternionf unsway = new Quaternionf(pose.sway()).conjugate();
-        Quaternionf unlean = new Quaternionf().rotationX(-pose.lean());
         Vector3f lift = new Vector3f(0.0F, -pose.lift(), 0.0F);
 
         model.head.xRot += pose.headPitch() * w;
@@ -161,8 +157,8 @@ public final class ClimbRigs {
 
         poseArm(model.rightArm, toModel(pose.handR(), unbody, lift), twist, pose.breath(), w);
         poseArm(model.leftArm, toModel(pose.handL(), unbody, lift), twist, pose.breath(), w);
-        poseLeg(model.rightLeg, footToModel(pose.footR(), unsway, unlean, lift), pose.grounded(), w);
-        poseLeg(model.leftLeg, footToModel(pose.footL(), unsway, unlean, lift), pose.grounded(), w);
+        poseLeg(model.rightLeg, toModel(pose.footR(), unbody, lift), pose.grounded(), w);
+        poseLeg(model.leftLeg, toModel(pose.footL(), unbody, lift), pose.grounded(), w);
     }
 
     public static void clearBends(PlayerModel<?> model) {
@@ -182,12 +178,6 @@ public final class ClimbRigs {
 
     private static Vector3f toModel(Vector3f ropeFrame, Quaternionf unbody, Vector3f lift) {
         return unbody.transform(new Vector3f(ropeFrame).sub(PIVOT)).add(PIVOT).sub(lift);
-    }
-
-    private static Vector3f footToModel(Vector3f ropeFrame, Quaternionf unsway, Quaternionf unlean, Vector3f lift) {
-        Vector3f fromPivot = new Vector3f(ropeFrame).sub(PIVOT);
-        Vector3f swayed = unsway.transform(new Vector3f(fromPivot));
-        return unlean.transform(fromPivot.lerp(swayed, FOOT_ROPE_FOLLOW)).add(PIVOT).sub(lift);
     }
 
     private static void poseArm(ModelPart arm, Vector3f target, float twist, float breath, float w) {

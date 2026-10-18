@@ -45,20 +45,20 @@ final class ClimbRig {
     // Tilts the body about the grip so the rope, which hangs in front of the chest, runs down between the feet.
     private static final float LEAN = -0.12F;
 
-    private static final float LEG_STIFFNESS_R = 0.2F;
-    private static final float LEG_STIFFNESS_L = 0.16F;
-    private static final float LEG_DAMPING = 0.15F;
-    private static final float LEG_ACCEL_KICK = 30.0F;
-    private static final float LEG_CLIMB_KICK = 12.0F;
-    private static final float LEG_SWING_LIMIT = 2.5F;
-    // A foot locked on the rope can only shift a little; a stepping foot dangles freely.
-    private static final float LOCKED_LEG_SWING = 0.6F;
+    // The feet pinch the rope between their inner faces (a leg is 4 px wide, the rope about 1.5 px).
+    private static final float FOOT_X = 3.2F;
+    private static final float FOOT_Y = 22.8F;
+    private static final float FOOT_RISE = 1.8F;
+    private static final float FOOT_RELEASE_X = 1.0F;
+    private static final float FOOT_RELEASE_Z = 0.8F;
+    private static final float SLIDE_FOOT_Y = 23.3F;
+    private static final float RECLAMP_LIFT = 1.4F;
 
     // onGround flickers as the rope sways the player at the bottom, so a contact holds for a few ticks.
     private static final int GROUND_HOLD_TICKS = 6;
     private static final int FIDGET_MIN_TICKS = 80;
     private static final int FIDGET_RANDOM_TICKS = 100;
-    private static final int REHOOK_TICKS = 14;
+    private static final int RECLAMP_TICKS = 14;
 
     private float weight;
     private float weightO;
@@ -89,9 +89,6 @@ final class ClimbRig {
 
     private float accelForward;
     private float accelRight;
-    private double prevSpeed;
-    private final LegSwing legR = new LegSwing(LEG_STIFFNESS_R);
-    private final LegSwing legL = new LegSwing(LEG_STIFFNESS_L);
 
     private int groundTicks;
     private float grounded;
@@ -100,11 +97,9 @@ final class ClimbRig {
     private final RandomSource random = RandomSource.create();
     private int idleTicks;
     private int nextFidget = FIDGET_MIN_TICKS;
-    private int rehookTicks;
-    private int rehookTicksO;
-    private float hookTarget = -1.0F;
-    private float hook = -1.0F;
-    private float hookO = -1.0F;
+    private int reclampTicks;
+    private int reclampTicksO;
+    private float reclampSide = -1.0F;
 
     record Pose(float weight, float lean, Quaternionf sway, float lift, float twist, float headPitch, float breath,
                 float grounded, Vector3f handR, Vector3f handL, Vector3f footR, Vector3f footL, Vec3 ropeOffset) {}
@@ -124,8 +119,7 @@ final class ClimbRig {
         rollO = roll;
         ropeOffsetO = ropeOffset;
         groundedO = grounded;
-        hookO = hook;
-        rehookTicksO = rehookTicks;
+        reclampTicksO = reclampTicks;
         age++;
 
         weight = approach(weight, active ? 1.0F : 0.0F, FADE_STEP);
@@ -151,28 +145,19 @@ final class ClimbRig {
         groundTicks = active && player.onGround() ? GROUND_HOLD_TICKS : Math.max(0, groundTicks - 1);
         grounded = approach(grounded, groundTicks > 0 ? 1.0F : 0.0F, 0.2F);
 
-        float climbKick = (float) (speed - prevSpeed) * LEG_CLIMB_KICK;
-        prevSpeed = speed;
-        legR.tick(accelRight * LEG_ACCEL_KICK, accelForward * LEG_ACCEL_KICK + climbKick);
-        legL.tick(accelRight * LEG_ACCEL_KICK, accelForward * LEG_ACCEL_KICK + climbKick);
-
         tickFidget(active && stepping < 0.05F && slide < 0.05F && grounded < 0.5F);
     }
 
     private void tickFidget(boolean calm) {
-        if (rehookTicks > 0) rehookTicks--;
+        if (reclampTicks > 0) reclampTicks--;
         if (!calm) {
             idleTicks = 0;
-        } else if (rehookTicks == 0 && ++idleTicks >= nextFidget) {
+        } else if (reclampTicks == 0 && ++idleTicks >= nextFidget) {
             idleTicks = 0;
             nextFidget = FIDGET_MIN_TICKS + random.nextInt(FIDGET_RANDOM_TICKS);
-            if (random.nextBoolean()) {
-                hookTarget = -hookTarget;
-            } else {
-                rehookTicks = REHOOK_TICKS;
-            }
+            reclampSide = random.nextBoolean() ? -1.0F : 1.0F;
+            reclampTicks = RECLAMP_TICKS;
         }
-        hook = approach(hook, hookTarget, 0.07F);
     }
 
     private void tickFacing(Player player, boolean active, Vec3 ropePoint, Vec3 tangent) {
@@ -275,18 +260,15 @@ final class ClimbRig {
         Vector3f handL = hand(pL, 1.0F).lerp(slideHand(1.0F, t), sl);
 
         float g = Mth.lerp(partialTick, groundedO, grounded);
-        float hk = Mth.lerp(partialTick, hookO, hook);
-        float rehook = rehookTicks > 0 || rehookTicksO > 0
-                ? Mth.sin((1.0F - Mth.lerp(partialTick, rehookTicksO, rehookTicks) / REHOOK_TICKS) * Mth.PI)
+        float reclamp = reclampTicks > 0 || reclampTicksO > 0
+                ? Mth.sin((1.0F - Mth.lerp(partialTick, reclampTicksO, reclampTicks) / RECLAMP_TICKS) * Mth.PI)
                 : 0.0F;
-        float swingScale = Mth.lerp(Math.max(st, sl * 0.5F), LOCKED_LEG_SWING, 1.0F);
-        Vector3f footR = foot(pL, -1.0F, st, sl, hk, rehook).add(legR.sample(partialTick).mul(swingScale));
-        Vector3f footL = foot(pR, 1.0F, st, sl, hk, rehook).add(legL.sample(partialTick).mul(swingScale));
+        Vector3f footR = foot(pL, -1.0F, st, sl, reclampSide < 0.0F ? reclamp : 0.0F);
+        Vector3f footL = foot(pR, 1.0F, st, sl, reclampSide > 0.0F ? reclamp : 0.0F);
 
         float upright = 1.0F - g;
         float swayPitch = (Mth.lerp(partialTick, pitchO, pitch) + sl * 0.012F * Mth.sin(t * 1.9F)) * upright;
-        float swayRoll = (Mth.lerp(partialTick, rollO, roll) + 0.035F * (reachL - reachR) * climb
-                + 0.025F * hk * (1.0F - st)) * upright;
+        float swayRoll = (Mth.lerp(partialTick, rollO, roll) + 0.035F * (reachL - reachR) * climb) * upright;
         Quaternionf sway = new Quaternionf().rotationZYX(swayRoll, 0.0F, swayPitch);
 
         float lift = 0.4F * climb * Mth.sin((float) (pR * Math.PI * 4.0));
@@ -324,23 +306,30 @@ final class ClimbRig {
         return new Vector3f(side * 0.7F, y + 0.25F * Mth.sin(t * 2.1F + side), ROPE_Z);
     }
 
-    // Foot lock: the rope runs down the outside of the hooking shin and under its foot, the other foot pins it
-    // from above. hook is -1 when the right leg hooks, +1 for the left.
-    private static Vector3f foot(double phase, float side, float stepping, float slide, float hook, float rehook) {
-        float hooking = (1.0F + side * hook) * 0.5F;
-        Vector3f lock = new Vector3f(side * 1.7F, 22.8F, ROPE_Z - 0.2F)
-                .lerp(new Vector3f(side * 1.7F, 23.2F, ROPE_Z + 0.9F), hooking);
-        lock.add(0.0F, -1.5F * rehook * hooking, 0.9F * rehook * hooking);
-
+    // Both feet clamp the rope. While the opposite hand holds, the leg extends as the body rises past the foot;
+    // while that hand swings, the foot lets go, steps up and clamps again.
+    private static Vector3f foot(double phase, float side, float stepping, float slide, float reclamp) {
         float f = frac(phase);
-        float lift = f < PLANTED ? 1.0F - easeInOut(f / PLANTED) : easeInOut((f - PLANTED) / SWING);
-        Vector3f step = new Vector3f(side * 1.8F, 23.4F, ROPE_Z + 1.4F)
-                .lerp(new Vector3f(side * 1.7F, 21.8F, ROPE_Z + 0.6F), lift);
-        lock.lerp(step, stepping);
+        float rise;
+        float release;
+        if (f < PLANTED) {
+            rise = 1.0F - f / PLANTED;
+            release = 0.0F;
+        } else {
+            float sw = (f - PLANTED) / SWING;
+            rise = easeInOut(sw);
+            release = Mth.sin(sw * Mth.PI);
+        }
+        Vector3f clamp = new Vector3f(side * FOOT_X, FOOT_Y, ROPE_Z);
+        Vector3f step = new Vector3f(
+                side * (FOOT_X + FOOT_RELEASE_X * release),
+                FOOT_Y - FOOT_RISE * rise,
+                ROPE_Z + FOOT_RELEASE_Z * release);
+        clamp.lerp(step, stepping);
+        clamp.add(side * FOOT_RELEASE_X * reclamp, -RECLAMP_LIFT * reclamp, FOOT_RELEASE_Z * reclamp);
 
-        Vector3f slid = new Vector3f(side * 1.6F, 22.9F, ROPE_Z)
-                .lerp(new Vector3f(side * 1.6F, 23.3F, ROPE_Z + 0.7F), hooking);
-        return lock.lerp(slid, slide);
+        Vector3f slid = new Vector3f(side * FOOT_X, SLIDE_FOOT_Y, ROPE_Z);
+        return clamp.lerp(slid, slide);
     }
 
     private static float reach(double phase) {
@@ -366,33 +355,5 @@ final class ClimbRig {
 
     private static float approach(float value, float target, float step) {
         return value < target ? Math.min(target, value + step) : Math.max(target, value - step);
-    }
-
-    private static final class LegSwing {
-        private final float stiffness;
-        private float x;
-        private float z;
-        private float xO;
-        private float zO;
-        private float vx;
-        private float vz;
-
-        LegSwing(float stiffness) {
-            this.stiffness = stiffness;
-        }
-
-        // Kicks push the foot toward model +X (the body's left) and +Z (backward).
-        void tick(float kickX, float kickZ) {
-            xO = x;
-            zO = z;
-            vx += kickX - x * stiffness - vx * LEG_DAMPING;
-            vz += kickZ - z * stiffness - vz * LEG_DAMPING;
-            x = Mth.clamp(x + vx, -LEG_SWING_LIMIT, LEG_SWING_LIMIT);
-            z = Mth.clamp(z + vz, -LEG_SWING_LIMIT, LEG_SWING_LIMIT);
-        }
-
-        Vector3f sample(float partialTick) {
-            return new Vector3f(Mth.lerp(partialTick, xO, x), 0.0F, Mth.lerp(partialTick, zO, z));
-        }
     }
 }

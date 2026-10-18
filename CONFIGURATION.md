@@ -448,14 +448,16 @@ player is posed every frame from their climb state:
 
 - **Climbing up** (`Forward`, W): hand-over-hand. Each hand grips a fixed point
   on the rope and stays there while the body rises past it, then lets go and
-  reaches overhead for the next grip. One hand always holds the rope. The legs
-  step in a diagonal rhythm with the arms and the torso twists into each reach.
+  reaches overhead for the next grip. One hand always holds the rope. The feet
+  pinch the rope between them: while a hand holds, the opposite leg pushes down
+  and straightens, and while that hand swings the foot lets go, steps up and
+  clamps again. The torso twists into each reach.
 - **Climbing down** (`Back`, S): the same cycle in reverse, hand under hand,
   with a calmer leg motion.
-- **Sliding**: both hands overhead on the rope with the feet locked around it,
-  braced, with a slight friction shudder.
-- **Idle**: the hands stay where they last gripped and the feet wrap the rope.
-  The body breathes and sways gently.
+- **Sliding**: both hands overhead on the rope with the legs straight and the
+  feet clamped on it, braced, with a slight friction shudder.
+- **Idle**: the hands stay where they last gripped and the feet keep the rope
+  pinched, re-clamping now and then. The body breathes and sways gently.
 
 Arms and legs are placed with two-bone IK, so elbows and knees bend. The skin,
 its outer layer and any armor bend together. The whole body hangs from its top
