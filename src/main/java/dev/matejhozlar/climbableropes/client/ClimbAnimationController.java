@@ -40,11 +40,14 @@ public final class ClimbAnimationController {
 
     // Resend the current state periodically so newly-tracking observers pick it up and the rope tangent stays fresh.
     private static final int SYNC_REFRESH_INTERVAL = 10;
+    // cos(3deg): a sagging rope changes direction as the player climbs it, so resend before the refresh is due.
+    private static final double SYNC_TANGENT_DOT = 0.9986;
 
     private static ClimbMode currentMode;
     private static ClimbState currentState;
     private static Vec3 ropeTangent;
     private static Vec3 ropePoint;
+    private static Vec3 syncedTangent;
     private static int syncRefreshCounter;
     // True between embark and the first climb tick, before the rope angle is known. Suppresses
     // Create's hanging pose during that gap so it does not flash before our pose is applied.
@@ -78,11 +81,12 @@ public final class ClimbAnimationController {
         ropePoint = point;
 
         ClimbState desired = desiredState(state, tangent);
+        boolean turned = desired != null && syncedTangent != null && tangent.dot(syncedTangent) < SYNC_TANGENT_DOT;
         if (desired != currentState) {
             currentState = desired;
             sendSync(desired, tangent);
             syncRefreshCounter = 0;
-        } else if (desired != null && ++syncRefreshCounter >= SYNC_REFRESH_INTERVAL) {
+        } else if (desired != null && (turned || ++syncRefreshCounter >= SYNC_REFRESH_INTERVAL)) {
             sendSync(desired, tangent);
             syncRefreshCounter = 0;
         }
@@ -133,11 +137,13 @@ public final class ClimbAnimationController {
         currentState = null;
         ropeTangent = null;
         ropePoint = null;
+        syncedTangent = null;
         syncRefreshCounter = 0;
         embarkPending = false;
     }
 
     private static void sendSync(ClimbState state, Vec3 tangent) {
+        syncedTangent = tangent;
         if (state == null) {
             ClimbableRopesNetwork.sendToServer(
                     new ClimbAnimUpdatePacket(false, ClimbState.IDLE.id(), 0.0, 0.0, 0.0));
