@@ -1,5 +1,6 @@
-## Version 2.1.4
+## Version 2.2.0
 
 ### Changed
-- Optimization improvements
-- Bumped Create Aeronautics to 1.3.2 and Sable to 2.0.5
+- Replaced the pre-made climbing animations with a procedural climbing pose that adapts to any rope angle: hands grip the rope, feet lock around it and the legs push while climbing
+- Players now crawl along flat and sagging ropes with the new climbing pose instead of Create's hanging pose
+- The mod no longer requires the Player Animator library
