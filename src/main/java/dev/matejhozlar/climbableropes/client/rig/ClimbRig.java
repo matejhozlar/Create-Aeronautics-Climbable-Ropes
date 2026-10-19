@@ -2,6 +2,7 @@ package dev.matejhozlar.climbableropes.client.rig;
 
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController.ClimbState;
+import dev.matejhozlar.climbableropes.client.ride.ClimbPhysics;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
@@ -12,13 +13,16 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 // Per-player climb state, ticked at 20 Hz and sampled per frame. Rope-frame coordinates are model pixels
-// (y down, forward -Z) before the body sway; the rope is the vertical line x = 0, z = ROPE_Z.
+// (y down, forward -Z) before the body sway; the rope is the vertical line x = 0, z = ROPE_Z. The whole frame
+// is then oriented so its y axis runs along the real rope and its front faces the rope from the side the
+// player hangs on, which turns the same cycle into a crawl along flat ropes.
 @OnlyIn(Dist.CLIENT)
 final class ClimbRig {
     static final float PX = 0.9375F / 16.0F;
     static final float MODEL_ORIGIN_Y = 1.501F * 16.0F;
     static final float ROPE_Z = -5.8F;
     static final float PIVOT_Y = -6.0F;
+    static final Vector3f PIVOT = new Vector3f(0.0F, PIVOT_Y, ROPE_Z);
 
     private static final float GRIP_TOP = -5.5F;
     private static final float GRIP_BOTTOM = 5.0F;
@@ -45,6 +49,10 @@ final class ClimbRig {
     // Tilts the body about the grip so the rope, which hangs in front of the chest, runs down between the feet.
     private static final float LEAN = -0.12F;
 
+    private static final double ORIENT_SMOOTHING = 0.3;
+    // Looking straight along a flat rope leaves no side to hang on; below this the player hangs beneath it.
+    private static final double MIN_SIDE = 0.05;
+
     // The feet pinch the rope between their inner faces (a leg is 4 px wide, the rope about 1.5 px).
     private static final float FOOT_X = 3.2F;
     private static final float FOOT_Y = 22.8F;
@@ -59,6 +67,9 @@ final class ClimbRig {
     private static final int FIDGET_MIN_TICKS = 80;
     private static final int FIDGET_RANDOM_TICKS = 100;
     private static final int RECLAMP_TICKS = 14;
+
+    private static final Vec3 UP = new Vec3(0.0, 1.0, 0.0);
+    private static final Vec3 DOWN = new Vec3(0.0, -1.0, 0.0);
 
     private float weight;
     private float weightO;
@@ -81,10 +92,14 @@ final class ClimbRig {
     private float rollVel;
     private Vec3 prevPos;
     private Vec3 velocity = Vec3.ZERO;
-    private Vec3 ropeOffset;
-    private Vec3 ropeOffsetO;
+    private Vec3 up = UP;
+    private Vec3 upO = UP;
+    private Vec3 front = new Vec3(0.0, 0.0, 1.0);
+    private Vec3 frontO = front;
+    private Vec3 gripOffset;
+    private Vec3 gripOffsetO;
     private float facing;
-    private boolean facingKnown;
+    private boolean oriented;
     private int age;
 
     private float accelForward;
@@ -101,14 +116,17 @@ final class ClimbRig {
     private int reclampTicksO;
     private float reclampSide = -1.0F;
 
+    // up and front are world directions: the rope-frame y axis (reversed, since model y points down) and the
+    // direction from the body to the rope. gripOffset is the world offset from the feet to the grip on the rope.
     record Pose(float weight, float lean, Quaternionf sway, float lift, float twist, float headPitch, float breath,
-                float grounded, Vector3f handR, Vector3f handL, Vector3f footR, Vector3f footL, Vec3 ropeOffset) {}
+                float grounded, Vector3f up, Vector3f front, Vector3f handR, Vector3f handL, Vector3f footR,
+                Vector3f footL, Vec3 gripOffset) {}
 
     boolean isIdle() {
         return weight <= 0.0F && weightO <= 0.0F;
     }
 
-    void tick(Player player, boolean active, ClimbState state, Vec3 ropePoint, Vec3 tangent) {
+    void tick(Player player, boolean active, ClimbState state, Vec3 ropePoint, Vec3 tangent, float yaw) {
         weightO = weight;
         phaseRO = phaseR;
         phaseLO = phaseL;
@@ -117,7 +135,9 @@ final class ClimbRig {
         movingO = moving;
         pitchO = pitch;
         rollO = roll;
-        ropeOffsetO = ropeOffset;
+        upO = up;
+        frontO = front;
+        gripOffsetO = gripOffset;
         groundedO = grounded;
         reclampTicksO = reclampTicks;
         age++;
@@ -139,7 +159,7 @@ final class ClimbRig {
                 state == ClimbState.CLIMB_UP ? 1.0F : state == ClimbState.DESCEND ? 0.6F : 0.0F, 0.15F);
         moving = approach(moving, step != 0.0 ? 1.0F : 0.0F, 0.15F);
 
-        tickFacing(player, active, ropePoint, tangent);
+        tickOrientation(player, active, ropePoint, tangent, yaw);
         tickPendulum(player);
 
         groundTicks = active && player.onGround() ? GROUND_HOLD_TICKS : Math.max(0, groundTicks - 1);
@@ -160,24 +180,64 @@ final class ClimbRig {
         }
     }
 
-    private void tickFacing(Player player, boolean active, Vec3 ropePoint, Vec3 tangent) {
-        float target = player.getYHeadRot();
-        ropeOffset = null;
-        if (ropePoint != null) {
-            double pivotHeight = (MODEL_ORIGIN_Y - PIVOT_Y) * PX * player.getScale();
-            Vec3 atPivot = ropePoint;
-            if (tangent != null && Math.abs(tangent.y) > 1.0e-3) {
-                atPivot = ropePoint.add(tangent.scale((player.getY() + pivotHeight - ropePoint.y) / tangent.y));
-            }
-            ropeOffset = new Vec3(atPivot.x - player.getX(), 0.0, atPivot.z - player.getZ());
-            if (ropeOffset.horizontalDistanceSqr() > 0.0025) {
-                target = (float) Math.toDegrees(Math.atan2(-ropeOffset.x, ropeOffset.z));
-            }
+    private void tickOrientation(Player player, boolean active, Vec3 ropePoint, Vec3 tangent, float yaw) {
+        Vec3 upTarget = up;
+        Vec3 frontTarget = front;
+        Vec3 ropeDir = tangent != null && tangent.lengthSqr() > 1.0e-8 ? tangent.normalize() : null;
+        if (ropeDir != null) {
+            upTarget = ropeDir.y < -0.05 ? ropeDir.scale(-1.0) : ropeDir;
+            double yawRad = Math.toRadians(yaw);
+            Vec3 back = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
+            Vec3 side = perpendicular(back, upTarget);
+            if (side.lengthSqr() < MIN_SIDE * MIN_SIDE) side = perpendicular(DOWN, upTarget);
+            frontTarget = side.normalize().scale(-1.0);
         }
-        if (ropeOffsetO == null) ropeOffsetO = ropeOffset;
-        facing = facingKnown ? Mth.rotLerp(0.5F, facing, target) : target;
-        facingKnown = true;
+        if (!oriented) {
+            up = upTarget;
+            front = frontTarget;
+            oriented = true;
+        } else {
+            Vec3 upBlend = up.lerp(upTarget, ORIENT_SMOOTHING);
+            up = upBlend.lengthSqr() < 1.0e-6 ? upTarget : upBlend.normalize();
+            Vec3 blended = perpendicular(front.lerp(frontTarget, ORIENT_SMOOTHING), up);
+            if (blended.lengthSqr() < 1.0e-6) blended = perpendicular(front, up);
+            if (blended.lengthSqr() < 1.0e-6) blended = perpendicular(DOWN, up);
+            front = blended.normalize();
+        }
+        facing = yawOf(front, up, facing);
         if (active) player.yBodyRot = facing;
+
+        gripOffset = null;
+        Vec3 rope = ropePoint;
+        if (rope == null && ropeDir != null) {
+            rope = ClimbPhysics.anchor(player).subtract(ClimbPhysics.sideOffset(player, yaw, upTarget));
+        }
+        if (rope != null) {
+            Vec3 feet = player.position();
+            Vector3f pivot = pivotFromFeet(facing, player.getScale() * PX);
+            Vec3 fromRope = feet.add(pivot.x, pivot.y, pivot.z).subtract(rope);
+            gripOffset = rope.add(up.scale(fromRope.dot(up))).subtract(feet);
+        }
+        if (gripOffsetO == null) gripOffsetO = gripOffset;
+    }
+
+    // The yaw the vanilla renderer gets: where the chest faces, or along the rope once the chest faces up or down.
+    static float yawOf(Vec3 front, Vec3 up, float fallback) {
+        Vec3 frontFlat = new Vec3(front.x, 0.0, front.z);
+        Vec3 upFlat = new Vec3(up.x, 0.0, up.z);
+        double along = Mth.clamp((0.5 - frontFlat.length()) / 0.5, 0.0, 1.0);
+        Vec3 heading = frontFlat.scale(1.0 - along).add(upFlat.scale(along));
+        if (heading.lengthSqr() < 1.0e-6) return fallback;
+        return (float) Math.toDegrees(Math.atan2(-heading.x, heading.z));
+    }
+
+    static Vector3f pivotFromFeet(float yaw, float scale) {
+        Quaternionf toWorld = new Quaternionf().rotationY((180.0F - yaw) * Mth.DEG_TO_RAD).rotateZ(Mth.PI);
+        return toWorld.transform(new Vector3f(PIVOT).sub(0.0F, MODEL_ORIGIN_Y, 0.0F)).mul(scale);
+    }
+
+    private static Vec3 perpendicular(Vec3 v, Vec3 axis) {
+        return v.subtract(axis.scale(v.dot(axis)));
     }
 
     private void tickPendulum(Player player) {
@@ -276,9 +336,23 @@ final class ClimbRig {
         float headPitch = -0.12F * climb + 0.18F * sl;
         float breath = 0.3F * Mth.sin(t * 0.09F) * (1.0F - 0.5F * mv);
 
-        Vec3 offset = ropeOffset == null || ropeOffsetO == null ? ropeOffset : ropeOffsetO.lerp(ropeOffset, partialTick);
+        // Standing at the bottom straightens the body up again whatever the rope's angle.
+        Vec3 upNow = upO.lerp(up, partialTick).normalize().lerp(UP, g).normalize();
+        Vec3 frontNow = frontO.lerp(front, partialTick);
+        float yawNow = yawOf(frontNow, upNow, facing);
+        double yawRad = Math.toRadians(yawNow);
+        frontNow = frontNow.lerp(new Vec3(-Math.sin(yawRad), 0.0, Math.cos(yawRad)), g);
+        frontNow = perpendicular(frontNow, upNow);
+        if (frontNow.lengthSqr() < 1.0e-6) frontNow = perpendicular(DOWN, upNow);
+        frontNow = frontNow.normalize();
+
+        Vec3 grip = gripOffset == null || gripOffsetO == null ? gripOffset : gripOffsetO.lerp(gripOffset, partialTick);
         return new Pose(w, LEAN * upright, sway, lift, twist, headPitch, breath, g,
-                handR, handL, footR, footL, offset);
+                toVector(upNow), toVector(frontNow), handR, handL, footR, footL, grip);
+    }
+
+    private static Vector3f toVector(Vec3 v) {
+        return new Vector3f((float) v.x, (float) v.y, (float) v.z);
     }
 
     private static Vector3f hand(double phase, float side) {

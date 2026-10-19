@@ -5,10 +5,11 @@ import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-final class ClimbPhysics {
+public final class ClimbPhysics {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
     // The eye-clearance push fades out between these rope steepnesses (|tangent.y|): on flatter ropes the
     // player hangs beneath the rope and the head is clear of it anyway.
@@ -20,11 +21,11 @@ final class ClimbPhysics {
 
     private ClimbPhysics() {}
 
-    private static double anchorHeight(LocalPlayer player) {
+    private static double anchorHeight(Player player) {
         return player.getBoundingBox().getYsize() + 0.5 * player.getScale();
     }
 
-    static Vec3 anchor(LocalPlayer player) {
+    public static Vec3 anchor(Player player) {
         return player.position().add(0.0, anchorHeight(player), 0.0);
     }
 
@@ -83,7 +84,7 @@ final class ClimbPhysics {
     // Keeps the anchor off the rope, perpendicular to it. The anchor sits above the eyes, so a rope that leans
     // away from the player passes closer to the face than to the anchor; the offset grows to keep the rope
     // CLIMB_SIDE_OFFSET in front of the eyes. It stays perpendicular so the closest rope point does not drift.
-    private static Vec3 sideOffset(LocalPlayer player, double yaw, Vec3 ropeDir) {
+    public static Vec3 sideOffset(Player player, double yaw, Vec3 ropeDir) {
         double yawRad = Math.toRadians(yaw);
         Vec3 back = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
         Vec3 perp = back.subtract(ropeDir.scale(back.dot(ropeDir)));

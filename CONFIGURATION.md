@@ -442,9 +442,8 @@ is required.
 - **Type:** boolean
 - **Default:** `true`
 
-Master switch for the climb animation. The custom pose only shows on
-**vertical-ish ropes** (within 45 degrees of vertical). With `true`, a climbing
-player is posed every frame from their climb state:
+Master switch for the climb animation. With `true`, a climbing player is
+posed every frame from their climb state:
 
 - **Climbing up** (`Forward`, W): hand-over-hand. Each hand grips a fixed point
   on the rope and stays there while the body rises past it, then lets go and
@@ -465,9 +464,17 @@ grip like a pendulum: it swings when the rope or the airship it hangs from
 accelerates, and is tilted to follow the rope's angle. This is a client-side
 visual only; the collision hitbox stays upright.
 
-On ropes flatter than 45 degrees, and while riding a plunger zipline, no
-custom pose is shown: instead the player keeps Create's chain-conveyor
-hanging pose (which Climbable Ropes otherwise suppresses).
+The body follows the rope's angle. On a vertical rope it hangs upright with
+the rope in front of the chest; as the rope leans, the body leans with it and
+the same hand-over-hand cycle becomes a crawl along the rope. Which side of the
+rope the body is on follows where you hang: facing down a flat rope you hang
+beneath it, feet hooked over it, and crawl along underneath (a monkey crawl);
+facing up it you lie on top of it and pull yourself along (a commando crawl).
+The head keeps looking where you look.
+
+While riding a plunger zipline no custom pose is shown: the player keeps
+Create's chain-conveyor hanging pose (which Climbable Ropes otherwise
+suppresses).
 
 With `false`, Create's hanging pose is used on every rope, for you and for
 other players as seen from your client.

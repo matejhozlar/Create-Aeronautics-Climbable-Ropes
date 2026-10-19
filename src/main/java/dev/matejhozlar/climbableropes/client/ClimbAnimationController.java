@@ -40,8 +40,6 @@ public final class ClimbAnimationController {
 
     // Resend the current state periodically so newly-tracking observers pick it up and the rope tangent stays fresh.
     private static final int SYNC_REFRESH_INTERVAL = 10;
-    // cos(45deg): ropes flatter than this fall back to Create's hanging pose.
-    private static final double VERTICAL_TANGENT_Y = 0.7071;
 
     private static ClimbMode currentMode;
     private static ClimbState currentState;
@@ -123,13 +121,7 @@ public final class ClimbAnimationController {
 
     private static ClimbState desiredState(ClimbState state, Vec3 tangent) {
         if (currentMode == ClimbMode.PLUNGER_ZIPLINE || state == null) return null;
-        return isVerticalish(tangent) ? state : null;
-    }
-
-    private static boolean isVerticalish(Vec3 tangent) {
-        if (tangent == null) return false;
-        double len = tangent.length();
-        return len > 1.0e-6 && Math.abs(tangent.y) / len >= VERTICAL_TANGENT_Y;
+        return tangent != null && tangent.lengthSqr() > 1.0e-12 ? state : null;
     }
 
     public static void reset() {

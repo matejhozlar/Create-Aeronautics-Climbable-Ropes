@@ -5,6 +5,7 @@ import dev.matejhozlar.climbableropes.ClimbableRopes;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import dev.matejhozlar.climbableropes.client.ClimbAnimationController.ClimbState;
+import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
 import dev.matejhozlar.climbableropes.client.RemoteClimbAnimations;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
@@ -18,6 +19,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import org.joml.Matrix3f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -37,9 +39,11 @@ public final class ClimbRigs {
     private static final float SHRUG_IN = 1.0F;
     private static final float SHRUG_FORWARD = 1.0F;
     private static final float STANDING_FOOT_Y = 23.5F;
-    private static final float MAX_ROPE_CORRECTION = 0.25F;
+    // How far the drawn body may shift off the hitbox so the grip sits on the rope: on flat ropes the grip is
+    // well above the upright model's reach.
+    private static final float MAX_GRIP_CORRECTION = 0.75F;
     private static final float MAX_HEAD_YAW = (float) Math.toRadians(75.0);
-    private static final Vector3f PIVOT = new Vector3f(0.0F, ClimbRig.PIVOT_Y, ClimbRig.ROPE_Z);
+    private static final float MAX_HEAD_PITCH = (float) Math.toRadians(70.0);
 
     private static final Map<UUID, ClimbRig> RIGS = new HashMap<>();
     private static int suppressDepth;
@@ -85,7 +89,8 @@ public final class ClimbRigs {
             Vec3 tangent = local
                     ? ClimbAnimationController.currentRopeTangent()
                     : RemoteClimbAnimations.tangentFor(id);
-            rig.tick(player, active, state, ropePoint, tangent);
+            float yaw = local ? ClimbableRopesKeybinds.climbYaw() : player.getYHeadRot();
+            rig.tick(player, active, state, ropePoint, tangent, yaw);
         }
         RIGS.entrySet().removeIf(e -> e.getValue().isIdle() || mc.level.getPlayerByUUID(e.getKey()) == null);
     }
@@ -98,41 +103,34 @@ public final class ClimbRigs {
         return pose.weight() > 0.0F ? pose : null;
     }
 
-    // Pivots the whole model about the top grip, which sits on the rope, so sway and rope alignment both keep
-    // the hands where the rope is.
-    public static boolean placeBody(Player player, float partialTick, Quaternionf align, PoseStack poseStack) {
+    // Pivots the whole model about the top grip, which sits on the rope, so the rope alignment and the sway
+    // both keep the hands where the rope is.
+    public static boolean placeBody(Player player, float partialTick, PoseStack poseStack) {
         ClimbRig.Pose pose = sample(player, partialTick);
-        if (pose == null && align == null) return false;
+        if (pose == null) return false;
 
+        float w = pose.weight();
         float scale = player.getScale() * ClimbRig.PX;
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        Quaternionf toWorld = new Quaternionf().rotationY((180.0F - bodyYaw) * Mth.DEG_TO_RAD).rotateZ(Mth.PI);
-        Vector3f pivot = toWorld.transform(new Vector3f(PIVOT).sub(0.0F, ClimbRig.MODEL_ORIGIN_Y, 0.0F)).mul(scale);
+        Quaternionf toWorld = toWorld(bodyYaw);
+        Vector3f pivot = ClimbRig.pivotFromFeet(bodyYaw, scale);
         Vector3f anchor = new Vector3f(pivot);
-        Quaternionf sway = new Quaternionf();
-        Vector3f lift = new Vector3f();
-        if (pose != null) {
-            float w = pose.weight();
-            Quaternionf worldSway = new Quaternionf(toWorld).mul(bodyRotation(pose))
-                    .mul(new Quaternionf(toWorld).conjugate());
-            sway.slerp(worldSway, w);
-            toWorld.transform(lift.set(0.0F, -pose.lift(), 0.0F)).mul(scale * w);
-            Vec3 offset = pose.ropeOffset();
-            if (offset != null) {
-                float dx = (float) offset.x - pivot.x;
-                float dz = (float) offset.z - pivot.z;
-                float len = Mth.sqrt(dx * dx + dz * dz);
-                if (len > MAX_ROPE_CORRECTION) {
-                    dx *= MAX_ROPE_CORRECTION / len;
-                    dz *= MAX_ROPE_CORRECTION / len;
-                }
-                anchor.add(dx * w, 0.0F, dz * w);
-            }
+        Quaternionf align = alignment(pose, bodyYaw);
+        Quaternionf worldSway = new Quaternionf(toWorld).mul(bodyRotation(pose))
+                .mul(new Quaternionf(toWorld).conjugate());
+        Quaternionf sway = new Quaternionf().slerp(worldSway, w);
+        Vector3f lift = toWorld.transform(new Vector3f(0.0F, -pose.lift(), 0.0F)).mul(scale * w);
+        Vec3 grip = pose.gripOffset();
+        if (grip != null) {
+            Vector3f correction = new Vector3f((float) grip.x, (float) grip.y, (float) grip.z).sub(pivot);
+            float len = correction.length();
+            if (len > MAX_GRIP_CORRECTION) correction.mul(MAX_GRIP_CORRECTION / len);
+            anchor.add(correction.mul(w));
         }
 
         poseStack.pushPose();
         poseStack.translate(anchor.x, anchor.y, anchor.z);
-        if (align != null) poseStack.mulPose(align);
+        poseStack.mulPose(align);
         poseStack.mulPose(sway);
         poseStack.translate(lift.x - pivot.x, lift.y - pivot.y, lift.z - pivot.z);
         return true;
@@ -141,16 +139,15 @@ public final class ClimbRigs {
     public static void pose(PlayerModel<?> model, AbstractClientPlayer player, float ageInTicks) {
         clearBends(model);
         if (isSuppressed()) return;
-        ClimbRig.Pose pose = sample(player, Mth.clamp(ageInTicks - player.tickCount, 0.0F, 1.0F));
+        float partialTick = Mth.clamp(ageInTicks - player.tickCount, 0.0F, 1.0F);
+        ClimbRig.Pose pose = sample(player, partialTick);
         if (pose == null) return;
         float w = pose.weight();
 
         Quaternionf unbody = bodyRotation(pose).conjugate();
         Vector3f lift = new Vector3f(0.0F, -pose.lift(), 0.0F);
 
-        model.head.xRot += pose.headPitch() * w;
-        model.head.yRot = Mth.lerp(w, model.head.yRot, Mth.clamp(model.head.yRot, -MAX_HEAD_YAW, MAX_HEAD_YAW));
-        model.hat.copyFrom(model.head);
+        poseHead(model, player, pose, partialTick);
 
         float twist = pose.twist();
         blend(model.body, 0.0F, 0.0F, 0.0F, 0.0F, twist, 0.0F, w);
@@ -172,12 +169,52 @@ public final class ClimbRigs {
         setBend(model.leftPants, null);
     }
 
+    // The head keeps looking where the player looks, whichever way the body is turned on the rope.
+    private static void poseHead(PlayerModel<?> model, AbstractClientPlayer player, ClimbRig.Pose pose,
+                                 float partialTick) {
+        float w = pose.weight();
+        float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
+        float lookPitch = Mth.lerp(partialTick, player.xRotO, player.getXRot());
+        float lookYaw = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+        Vec3 lookWorld = Vec3.directionFromRotation(lookPitch, lookYaw);
+
+        Quaternionf modelToWorld = alignment(pose, bodyYaw).mul(toWorld(bodyYaw)).mul(bodyRotation(pose));
+        Vector3f look = modelToWorld.conjugate()
+                .transform(new Vector3f((float) lookWorld.x, (float) lookWorld.y, (float) lookWorld.z));
+        float pitch = (float) Math.asin(Mth.clamp(look.y, -1.0F, 1.0F)) + pose.headPitch();
+        float yaw = (float) Math.atan2(-look.x, -look.z);
+        pitch = Mth.clamp(pitch, -MAX_HEAD_PITCH, MAX_HEAD_PITCH);
+        yaw = Mth.clamp(yaw, -MAX_HEAD_YAW, MAX_HEAD_YAW);
+
+        model.head.xRot = lerpAngle(w, model.head.xRot, pitch);
+        model.head.yRot = lerpAngle(w, model.head.yRot, yaw);
+        model.hat.copyFrom(model.head);
+    }
+
+    private static Quaternionf toWorld(float bodyYaw) {
+        return new Quaternionf().rotationY((180.0F - bodyYaw) * Mth.DEG_TO_RAD).rotateZ(Mth.PI);
+    }
+
+    // The world rotation that takes the upright, yawed body to the rope frame: its up axis along the rope and
+    // its chest facing the rope. Faded with the pose weight so the body straightens as the pose lets go.
+    private static Quaternionf alignment(ClimbRig.Pose pose, float bodyYaw) {
+        float yawRad = bodyYaw * Mth.DEG_TO_RAD;
+        Vector3f facing = new Vector3f(-Mth.sin(yawRad), 0.0F, Mth.cos(yawRad));
+        Vector3f worldUp = new Vector3f(0.0F, 1.0F, 0.0F);
+        Matrix3f upright = new Matrix3f(facing, worldUp, new Vector3f(facing).cross(worldUp));
+        Vector3f front = pose.front();
+        Vector3f up = pose.up();
+        Matrix3f onRope = new Matrix3f(front, up, new Vector3f(front).cross(up));
+        Quaternionf target = onRope.mul(upright.transpose()).getNormalizedRotation(new Quaternionf());
+        return new Quaternionf().slerp(target, pose.weight());
+    }
+
     private static Quaternionf bodyRotation(ClimbRig.Pose pose) {
         return new Quaternionf(pose.sway()).rotateX(pose.lean());
     }
 
     private static Vector3f toModel(Vector3f ropeFrame, Quaternionf unbody, Vector3f lift) {
-        return unbody.transform(new Vector3f(ropeFrame).sub(PIVOT)).add(PIVOT).sub(lift);
+        return unbody.transform(new Vector3f(ropeFrame).sub(ClimbRig.PIVOT)).add(ClimbRig.PIVOT).sub(lift);
     }
 
     private static void poseArm(ModelPart arm, Vector3f target, float twist, float breath, float w) {
