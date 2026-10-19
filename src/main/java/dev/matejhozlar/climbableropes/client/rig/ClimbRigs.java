@@ -70,6 +70,8 @@ public final class ClimbRigs {
             return;
         }
         if (mc.isPaused()) return;
+        // A render that threw between push and pop would otherwise keep the pose off for the whole session.
+        suppressDepth = 0;
 
         boolean enabled = ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get();
         for (AbstractClientPlayer player : mc.level.players()) {
