@@ -92,7 +92,7 @@ final class PlungerClimbController {
 
         Vec3 ropeVel = backEnd.velocity().lerp(fwdEnd.velocity(), t / abLen);
         ClimbPhysics.applyClimbVelocity(player, anchor, ropeWorld, dir, step.speedAlong(), ropeVel);
-        ClimbAnimationController.onTick(dir, step.animState());
+        ClimbAnimationController.onTick(dir, ropeWorld, step.animState());
         RopeRide.keepAlive(forwardPlunger.getUUID());
     }
 

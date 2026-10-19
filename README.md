@@ -136,7 +136,7 @@ Defaults preserve the standard behavior; these affect physics feel and targeting
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `enableClimbAnimation` | `true` | Play the rope-climb body/arm/leg animations while attached to a rope. |
-| `animationSpeedMultiplier` | `1.0` | Playback-speed multiplier for the climb animations. `1.0` is the authored speed. |
+| `enableClimbAnimation` | `true` | Pose climbing players with the procedural rope-climb animation. |
+| `animationSpeedMultiplier` | `1.0` | Multiplier for how fast the hands and feet cycle while climbing. `1.0` is the default cadence. |
 
-Animations are driven by [KosmX's Player Animator](https://modrinth.com/mod/player-animator), an MIT-licensed library. Climbable Ropes bundles it via jar-in-jar, so end users do not install it separately. If a standalone copy is also present, NeoForge deduplicates by version and loads whichever is newer. When Entity Model Features is installed, its custom player animations (for example Fresh Animations: Player Extension) are paused for a player while a climb animation plays or while the player hangs in Create's skyhook pose (flat ropes, ziplines, and Create's own chain conveyors), and resume as soon as they let go, so neither pose is overwritten. Setting `enableClimbAnimation` to `false` turns this pausing off along with the animations.
+The climb animation is procedural and needs no extra library. Hands grip fixed points on the rope and are placed with two-bone IK, so elbows and knees bend (skin layers, sleeves and armor bend with them), the body hangs from its grip, swings with momentum and follows the rope's angle (crawling along flat ropes), and other players see the same motion through a small state sync. When Entity Model Features is installed, its custom player animations (for example Fresh Animations: Player Extension) are paused for a player while the climb pose is shown or while the player hangs in Create's skyhook pose (ziplines and Create's own chain conveyors), and resume as soon as they let go, so neither pose is overwritten. Setting `enableClimbAnimation` to `false` turns this pausing off along with the animations.

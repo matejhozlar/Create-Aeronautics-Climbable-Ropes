@@ -1,14 +1,5 @@
 package dev.matejhozlar.climbableropes.client;
 
-import dev.kosmx.playerAnim.api.layered.IAnimation;
-import dev.kosmx.playerAnim.api.layered.KeyframeAnimationPlayer;
-import dev.kosmx.playerAnim.api.layered.ModifierLayer;
-import dev.kosmx.playerAnim.api.layered.modifier.AbstractFadeModifier;
-import dev.kosmx.playerAnim.api.layered.modifier.SpeedModifier;
-import dev.kosmx.playerAnim.core.data.KeyframeAnimation;
-import dev.kosmx.playerAnim.core.util.Ease;
-import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationAccess;
-import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import dev.matejhozlar.climbableropes.ClimbableRopes;
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.network.ClimbAnimUpdatePacket;
@@ -21,97 +12,93 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import java.util.Objects;
-
 @OnlyIn(Dist.CLIENT)
 public final class ClimbAnimationController {
     public enum ClimbMode { HANGING_STRAND, PLUNGER_ROPE, PLUNGER_ZIPLINE }
-    public enum ClimbState { IDLE, CLIMB_UP, DESCEND, SLIDE }
 
-    private static final int LAYER_PRIORITY = 40;
-    private static final int FADE_TICKS = 4;
+    public enum ClimbState {
+        IDLE("idle"), CLIMB_UP("climb_up"), DESCEND("descend"), SLIDE("slide");
+
+        // The sync packet carries these ids, which keeps it wire-compatible with clients on older versions.
+        private final ResourceLocation id;
+
+        ClimbState(String path) {
+            this.id = ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, path);
+        }
+
+        public ResourceLocation id() {
+            return id;
+        }
+
+        public static ClimbState byId(ResourceLocation id) {
+            for (ClimbState state : values()) {
+                if (state.id.equals(id)) return state;
+            }
+            return null;
+        }
+    }
+
     // Resend the current state periodically so newly-tracking observers pick it up and the rope tangent stays fresh.
     private static final int SYNC_REFRESH_INTERVAL = 10;
-    // cos(45deg): ropes flatter than this fall back to Create's hanging pose.
-    private static final double VERTICAL_TANGENT_Y = 0.7071;
-    private static final ResourceLocation ANIM_CLIMB_UP =
-            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "climb_up");
-    private static final ResourceLocation ANIM_DESCEND =
-            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "descend");
-    private static final ResourceLocation ANIM_SLIDE =
-            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "slide");
-    private static final ResourceLocation ANIM_IDLE =
-            ResourceLocation.fromNamespaceAndPath(ClimbableRopes.MODID, "idle");
+    // cos(3deg): a sagging rope changes direction as the player climbs it, so resend before the refresh is due.
+    private static final double SYNC_TANGENT_DOT = 0.9986;
 
-    private static ModifierLayer<IAnimation> layer;
-    private static SpeedModifier speedModifier;
-    private static LocalPlayer attachedPlayer;
     private static ClimbMode currentMode;
-    private static ResourceLocation currentAnimId;
+    private static ClimbState currentState;
     private static Vec3 ropeTangent;
+    private static Vec3 ropePoint;
+    private static Vec3 syncedTangent;
     private static int syncRefreshCounter;
     // True between embark and the first climb tick, before the rope angle is known. Suppresses
-    // Create's hanging pose during that gap so it does not flash before our animation is applied.
+    // Create's hanging pose during that gap so it does not flash before our pose is applied.
     private static boolean embarkPending;
 
     private ClimbAnimationController() {}
 
     public static void onEmbark(ClimbMode mode) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) {
-            removeLayer();
+            clear();
             return;
         }
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return;
-        ensureLayer(player);
+        if (Minecraft.getInstance().player == null) return;
         currentMode = mode;
-        currentAnimId = null;
+        currentState = null;
         ropeTangent = null;
+        ropePoint = null;
         embarkPending = mode != ClimbMode.PLUNGER_ZIPLINE;
     }
 
-    public static void onTick(Vec3 tangent, ClimbState state) {
+    public static void onTick(Vec3 tangent, Vec3 point, ClimbState state) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) {
-            if (currentAnimId != null) sendSync(null, null);
-            removeLayer();
+            if (currentState != null) sendSync(null, null);
+            clear();
             return;
         }
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || layer == null) return;
+        if (currentMode == null || Minecraft.getInstance().player == null) return;
 
         embarkPending = false;
         ropeTangent = tangent;
-        if (speedModifier != null) {
-            speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
-        }
+        ropePoint = point;
 
-        ResourceLocation desired = desiredAnimation(state, tangent);
-        if (!Objects.equals(desired, currentAnimId)) {
-            applyAnimation(desired, currentAnimId != null);
-            currentAnimId = desired;
+        ClimbState desired = desiredState(state, tangent);
+        boolean turned = desired != null && syncedTangent != null && tangent.dot(syncedTangent) < SYNC_TANGENT_DOT;
+        if (desired != currentState) {
+            currentState = desired;
             sendSync(desired, tangent);
             syncRefreshCounter = 0;
-        } else if (desired != null && ++syncRefreshCounter >= SYNC_REFRESH_INTERVAL) {
+        } else if (desired != null && (turned || ++syncRefreshCounter >= SYNC_REFRESH_INTERVAL)) {
             sendSync(desired, tangent);
             syncRefreshCounter = 0;
         }
     }
 
     public static void onDisembark() {
-        if (layer != null) {
-            layer.replaceAnimationWithFade(
-                    AbstractFadeModifier.standardFadeIn(FADE_TICKS, Ease.INOUTSINE), null);
-        }
-        if (currentAnimId != null) sendSync(null, null);
-        currentMode = null;
-        currentAnimId = null;
-        ropeTangent = null;
-        syncRefreshCounter = 0;
-        embarkPending = false;
+        if (currentState != null) sendSync(null, null);
+        clear();
     }
 
     public static boolean isCustomPoseActive() {
-        return layer != null && (currentAnimId != null || embarkPending);
+        return currentState != null || embarkPending;
     }
 
     public static boolean isLocalPlayerAttached() {
@@ -124,86 +111,45 @@ public final class ClimbAnimationController {
         return RemoteClimbAnimations.isCustomPoseActive(player.getUUID());
     }
 
+    public static ClimbState currentState() {
+        return currentState;
+    }
+
     public static Vec3 currentRopeTangent() {
-        return currentAnimId != null ? ropeTangent : null;
+        return currentState != null ? ropeTangent : null;
     }
 
-    private static ResourceLocation desiredAnimation(ClimbState state, Vec3 tangent) {
+    public static Vec3 currentRopePoint() {
+        return currentState != null ? ropePoint : null;
+    }
+
+    private static ClimbState desiredState(ClimbState state, Vec3 tangent) {
         if (currentMode == ClimbMode.PLUNGER_ZIPLINE || state == null) return null;
-        if (!isVerticalish(tangent)) return null;
-        return switch (state) {
-            case CLIMB_UP -> ANIM_CLIMB_UP;
-            case DESCEND -> ANIM_DESCEND;
-            case SLIDE -> ANIM_SLIDE;
-            case IDLE -> ANIM_IDLE;
-        };
-    }
-
-    private static boolean isVerticalish(Vec3 tangent) {
-        if (tangent == null) return false;
-        double len = tangent.length();
-        return len > 1.0e-6 && Math.abs(tangent.y) / len >= VERTICAL_TANGENT_Y;
+        return tangent != null && tangent.lengthSqr() > 1.0e-12 ? state : null;
     }
 
     public static void reset() {
-        removeLayer();
-        syncRefreshCounter = 0;
+        clear();
     }
 
-    private static void removeLayer() {
-        if (layer == null) return;
-        if (attachedPlayer != null) {
-            try {
-                PlayerAnimationAccess.getPlayerAnimLayer(attachedPlayer).removeLayer(layer);
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        layer = null;
-        speedModifier = null;
-        attachedPlayer = null;
+    private static void clear() {
         currentMode = null;
-        currentAnimId = null;
+        currentState = null;
         ropeTangent = null;
+        ropePoint = null;
+        syncedTangent = null;
+        syncRefreshCounter = 0;
         embarkPending = false;
     }
 
-    private static void ensureLayer(LocalPlayer player) {
-        if (layer != null && player == attachedPlayer) return;
-        if (layer != null) removeLayer();
-
-        layer = new ModifierLayer<>();
-        speedModifier = new SpeedModifier();
-        speedModifier.speed = ClimbableRopesConfig.ANIMATION_SPEED_MULTIPLIER.get().floatValue();
-        layer.addModifierLast(speedModifier);
-
-        PlayerAnimationAccess.getPlayerAnimLayer(player).addAnimLayer(LAYER_PRIORITY, layer);
-        attachedPlayer = player;
-    }
-
-    private static void applyAnimation(ResourceLocation id, boolean fade) {
-        IAnimation anim = load(id);
-        if (fade) {
-            layer.replaceAnimationWithFade(
-                    AbstractFadeModifier.standardFadeIn(FADE_TICKS, Ease.INOUTSINE), anim);
-        } else {
-            layer.setAnimation(anim);
-        }
-    }
-
-    static IAnimation load(ResourceLocation id) {
-        if (id == null) return null;
-        var playable = PlayerAnimationRegistry.getAnimation(id);
-        if (!(playable instanceof KeyframeAnimation kf)) return null;
-        return new KeyframeAnimationPlayer(kf);
-    }
-
-    private static void sendSync(ResourceLocation animation, Vec3 tangent) {
-        if (animation == null) {
+    private static void sendSync(ClimbState state, Vec3 tangent) {
+        syncedTangent = tangent;
+        if (state == null) {
             ClimbableRopesNetwork.sendToServer(
-                    new ClimbAnimUpdatePacket(false, ANIM_IDLE, 0.0, 0.0, 0.0));
+                    new ClimbAnimUpdatePacket(false, ClimbState.IDLE.id(), 0.0, 0.0, 0.0));
         } else {
             ClimbableRopesNetwork.sendToServer(new ClimbAnimUpdatePacket(
-                    true, animation, tangent.x, tangent.y, tangent.z));
+                    true, state.id(), tangent.x, tangent.y, tangent.z));
         }
     }
 }

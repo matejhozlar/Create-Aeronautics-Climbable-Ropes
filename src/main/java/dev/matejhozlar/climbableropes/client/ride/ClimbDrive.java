@@ -6,6 +6,8 @@ import net.minecraft.client.Minecraft;
 
 final class ClimbDrive {
     private static final double AT_END_ARC_EPSILON = 0.2;
+    // Below this the player is pinned at an end of the rope and only looks like they are moving.
+    private static final double MIN_ANIM_SPEED = 0.005;
 
     private int bottomGroundedTimer;
     private boolean parkedAtBottom;
@@ -74,9 +76,9 @@ final class ClimbDrive {
         if (speedAlong < 0.0) speedAlong = -Math.min(-speedAlong, remaining.backward());
 
         ClimbState animState;
-        if (climbUp) animState = ClimbState.CLIMB_UP;
-        else if (slideVelocity > descendSpeed) animState = ClimbState.SLIDE;
-        else if (speedAlong < 0.0) animState = ClimbState.DESCEND;
+        if (climbUp && speedAlong > MIN_ANIM_SPEED) animState = ClimbState.CLIMB_UP;
+        else if (slideVelocity > descendSpeed && speedAlong < -MIN_ANIM_SPEED) animState = ClimbState.SLIDE;
+        else if (speedAlong < -MIN_ANIM_SPEED) animState = ClimbState.DESCEND;
         else animState = ClimbState.IDLE;
         return new Step(speedAlong, animState);
     }

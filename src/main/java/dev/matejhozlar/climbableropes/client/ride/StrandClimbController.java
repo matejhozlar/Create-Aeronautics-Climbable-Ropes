@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.UUID;
 
 final class StrandClimbController {
@@ -190,12 +191,8 @@ final class StrandClimbController {
 
         ClimbPhysics.applyClimbVelocity(player, anchor, ropeWorld, forwardAlongStrand, step.speedAlong(), sq.velocity);
 
-        // The endpoint-to-endpoint chord, not a local segment, keeps the verticality gate from flickering.
-        Vec3 ropeChord = forwardIsLast
-                ? lastPoint.subtract(firstPoint)
-                : firstPoint.subtract(lastPoint);
-        Vec3 animForward = ropeChord.lengthSqr() > 1.0e-8 ? ropeChord.normalize() : forwardAlongStrand;
-        ClimbAnimationController.onTick(animForward, step.animState());
+        Vec3 animForward = forwardIsLast ? sq.smoothTangent : sq.smoothTangent.scale(-1.0);
+        ClimbAnimationController.onTick(animForward, ropeWorld, step.animState());
 
         RopeRide.keepAlive(climbingRope);
     }
@@ -243,11 +240,31 @@ final class StrandClimbController {
             endOvershoot = minRaw - minSegLen;
         }
         Vec3 velocity = Vec3.ZERO;
+        Vec3 smoothTangent = minTangent;
         if (minSegIndex >= 0) {
             velocity = pointVelocity(points.get(minSegIndex))
                     .lerp(pointVelocity(points.get(minSegIndex + 1)), minSegFrac);
+            smoothTangent = blendedTangent(points, minSegIndex, minSegFrac, minTangent);
         }
-        return new StrandQuery(minPoint, minTangent, minArc, minDistSq, endOvershoot, velocity);
+        return new StrandQuery(minPoint, minTangent, smoothTangent, minArc, minDistSq, endOvershoot, velocity);
+    }
+
+    // A strand is a polyline, so the segment tangent jumps at every vertex; the pose follows the direction
+    // blended between the vertex tangents instead.
+    private static Vec3 blendedTangent(List<ClientRopePoint> points, int segment, double frac, Vec3 dir) {
+        Vec3 before = segmentDir(points, segment - 1);
+        Vec3 after = segmentDir(points, segment + 1);
+        Vec3 atStart = before == null ? dir : dir.add(before);
+        Vec3 atEnd = after == null ? dir : dir.add(after);
+        Vec3 blended = atStart.lerp(atEnd, frac);
+        return blended.lengthSqr() > 1.0e-8 ? blended.normalize() : dir;
+    }
+
+    private static Vec3 segmentDir(List<ClientRopePoint> points, int segment) {
+        if (segment < 0 || segment >= points.size() - 1) return null;
+        Vec3 ab = JOMLConversion.toMojang(points.get(segment + 1).position())
+                .subtract(JOMLConversion.toMojang(points.get(segment).position()));
+        return ab.lengthSqr() >= 1.0e-12 ? ab.normalize() : null;
     }
 
     private static Vec3 pointVelocity(ClientRopePoint point) {
@@ -265,8 +282,8 @@ final class StrandClimbController {
         return s;
     }
 
-    private record StrandQuery(Vec3 position, Vec3 tangent, double arcLengthFromStart, double distSqr,
-                               double endOvershoot, Vec3 velocity) {}
+    private record StrandQuery(Vec3 position, Vec3 tangent, Vec3 smoothTangent, double arcLengthFromStart,
+                               double distSqr, double endOvershoot, Vec3 velocity) {}
 
     private static boolean trySnapAboveCeiling(Minecraft mc, LocalPlayer player, Vec3 topPoint) {
         Vec3 playerPos = player.position();
