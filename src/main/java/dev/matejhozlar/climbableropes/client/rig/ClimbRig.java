@@ -142,7 +142,9 @@ final class ClimbRig {
         reclampTicksO = reclampTicks;
         age++;
 
-        weight = approach(weight, active ? 1.0F : 0.0F, FADE_STEP);
+        // The pose has nowhere to face until the first rope direction arrives, a tick after embark.
+        tickOrientation(player, active, ropePoint, tangent, yaw);
+        weight = approach(weight, active && oriented ? 1.0F : 0.0F, FADE_STEP);
         if (!active || state == null) state = ClimbState.IDLE;
 
         double speed = switch (state) {
@@ -159,7 +161,6 @@ final class ClimbRig {
                 state == ClimbState.CLIMB_UP ? 1.0F : state == ClimbState.DESCEND ? 0.6F : 0.0F, 0.15F);
         moving = approach(moving, step != 0.0 ? 1.0F : 0.0F, 0.15F);
 
-        tickOrientation(player, active, ropePoint, tangent, yaw);
         tickPendulum(player);
 
         groundTicks = active && player.onGround() ? GROUND_HOLD_TICKS : Math.max(0, groundTicks - 1);
@@ -193,6 +194,7 @@ final class ClimbRig {
             frontTarget = side.normalize().scale(-1.0);
         }
         if (!oriented) {
+            if (ropeDir == null) return;
             up = upTarget;
             front = frontTarget;
             oriented = true;
@@ -207,7 +209,8 @@ final class ClimbRig {
         facing = yawOf(front, up, facing);
         if (active) player.yBodyRot = facing;
 
-        gripOffset = null;
+        // Without rope information (the fade-out after letting go) the last grip stays, so the correction
+        // fades with the weight instead of snapping off.
         Vec3 rope = ropePoint;
         if (rope == null && ropeDir != null) {
             rope = ClimbPhysics.anchor(player).subtract(ClimbPhysics.sideOffset(player, yaw, upTarget));
