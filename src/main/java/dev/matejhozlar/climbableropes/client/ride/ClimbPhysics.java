@@ -11,10 +11,10 @@ import net.minecraft.world.phys.Vec3;
 
 public final class ClimbPhysics {
     private static final double CLIMB_SIDE_OFFSET = 0.3;
-    // The eye-clearance push fades out between these rope steepnesses (|tangent.y|): on flatter ropes the
-    // player hangs beneath the rope and the head is clear of it anyway.
-    private static final double EYE_CLEAR_FULL_Y = 0.5;
-    private static final double EYE_CLEAR_NONE_Y = 0.26;
+    // Rope |tangent.y| from which the climber circles the rope with the camera, and up to which they stay under it.
+    private static final double STEEP_Y = 0.5;
+    private static final double FLAT_Y = 0.26;
+    private static final Vec3 DOWN = new Vec3(0.0, -1.0, 0.0);
     private static final double AT_BOTTOM_DIST_SQR = 1.0;
     // Below this |y| threshold the rope is treated as horizontal (look-based forward).
     private static final double NEAR_HORIZONTAL_EPS = 0.05;
@@ -85,17 +85,55 @@ public final class ClimbPhysics {
     // away from the player passes closer to the face than to the anchor; the offset grows to keep the rope
     // CLIMB_SIDE_OFFSET in front of the eyes. It stays perpendicular so the closest rope point does not drift.
     public static Vec3 sideOffset(Player player, double yaw, Vec3 ropeDir) {
-        double yawRad = Math.toRadians(yaw);
-        Vec3 back = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
-        Vec3 perp = back.subtract(ropeDir.scale(back.dot(ropeDir)));
-        double len = perp.length();
-        if (len < 1e-6) return Vec3.ZERO;
+        Vec3 up = uphill(ropeDir);
+        Vec3 side = hangSide(yaw, up);
+        if (side.lengthSqr() < 1.0e-8) return Vec3.ZERO;
 
-        Vec3 up = ropeDir.y < 0.0 ? ropeDir.scale(-1.0) : ropeDir;
+        double steep = steepness(up);
         double eyeDrop = anchorHeight(player) - player.getEyeHeight();
-        double atEyes = CLIMB_SIDE_OFFSET * up.y - eyeDrop * back.dot(up);
-        double steep = Mth.clamp((up.y - EYE_CLEAR_NONE_Y) / (EYE_CLEAR_FULL_Y - EYE_CLEAR_NONE_Y), 0.0, 1.0);
+        double atEyes = CLIMB_SIDE_OFFSET * up.y - eyeDrop * backOf(yaw).dot(up);
         double dist = Math.max(CLIMB_SIDE_OFFSET, Mth.lerp(steep, CLIMB_SIDE_OFFSET, atEyes));
-        return perp.scale(dist / len);
+
+        // Under a flatter rope only the sideways part moves the body, so circling the camera never lifts or drops it.
+        Vec3 across = up.cross(DOWN);
+        if (across.lengthSqr() < 1.0e-8) return side.scale(dist);
+        across = across.normalize();
+        return across.scale(side.dot(across)).lerp(side, steep).scale(dist);
+    }
+
+    // Flatter ropes swing the climber side, beneath, side and never over the top, even when looking straight up them.
+    public static Vec3 hangSide(double yaw, Vec3 ropeDir) {
+        Vec3 up = uphill(ropeDir);
+        Vec3 back = backOf(yaw);
+        Vec3 orbit = perpendicular(back, up);
+        Vec3 beneath = perpendicular(DOWN, up);
+        double steep = steepness(up);
+        if (steep >= 1.0 || beneath.lengthSqr() < 1.0e-8) {
+            return orbit.lengthSqr() < 1.0e-12 ? Vec3.ZERO : orbit.normalize();
+        }
+        beneath = beneath.normalize();
+        Vec3 across = up.cross(beneath);
+        double swing = Math.asin(Mth.clamp(back.dot(across), -1.0, 1.0));
+        Vec3 below = beneath.scale(Math.cos(swing)).add(across.scale(Math.sin(swing)));
+        if (steep > 0.0 && orbit.lengthSqr() > 1.0e-12) below = below.lerp(orbit.normalize(), steep);
+        return below.lengthSqr() < 1.0e-8 ? beneath : below.normalize();
+    }
+
+    private static Vec3 uphill(Vec3 ropeDir) {
+        Vec3 dir = ropeDir.normalize();
+        return dir.y < 0.0 ? dir.scale(-1.0) : dir;
+    }
+
+    private static double steepness(Vec3 up) {
+        return Mth.clamp((up.y - FLAT_Y) / (STEEP_Y - FLAT_Y), 0.0, 1.0);
+    }
+
+    private static Vec3 backOf(double yaw) {
+        double yawRad = Math.toRadians(yaw);
+        return new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
+    }
+
+    private static Vec3 perpendicular(Vec3 v, Vec3 axis) {
+        return v.subtract(axis.scale(v.dot(axis)));
     }
 }
