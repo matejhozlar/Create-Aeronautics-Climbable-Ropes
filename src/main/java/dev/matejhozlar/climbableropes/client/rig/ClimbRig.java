@@ -217,8 +217,9 @@ final class ClimbRig {
         }
         if (rope != null) {
             Vec3 feet = player.position();
+            // Only the pivot's height: its forward offset turns with the body and would slide the grip along the rope.
             Vector3f pivot = pivotFromFeet(facing, player.getScale() * PX);
-            Vec3 fromRope = feet.add(pivot.x, pivot.y, pivot.z).subtract(rope);
+            Vec3 fromRope = feet.add(0.0, pivot.y, 0.0).subtract(rope);
             gripOffset = rope.add(up.scale(fromRope.dot(up))).subtract(feet);
         }
         if (gripOffsetO == null) gripOffsetO = gripOffset;
