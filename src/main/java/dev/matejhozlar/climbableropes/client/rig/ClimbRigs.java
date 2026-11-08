@@ -41,7 +41,7 @@ public final class ClimbRigs {
     private static final float STANDING_FOOT_Y = 23.5F;
     // How far the drawn body may shift off the hitbox so the grip sits on the rope: on flat ropes the grip is
     // well above the upright model's reach.
-    private static final float MAX_GRIP_CORRECTION = 0.75F;
+    private static final float MAX_GRIP_CORRECTION = 1.0F;
     private static final float MAX_HEAD_YAW = (float) Math.toRadians(75.0);
     private static final float MAX_HEAD_PITCH = (float) Math.toRadians(70.0);
 
@@ -126,7 +126,8 @@ public final class ClimbRigs {
         if (grip != null) {
             Vector3f correction = new Vector3f((float) grip.x, (float) grip.y, (float) grip.z).sub(pivot);
             float len = correction.length();
-            if (len > MAX_GRIP_CORRECTION) correction.mul(MAX_GRIP_CORRECTION / len);
+            float max = MAX_GRIP_CORRECTION * player.getScale();
+            if (len > max) correction.mul(max / len);
             anchor.add(correction.mul(w));
         }
 
