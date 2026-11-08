@@ -50,8 +50,6 @@ final class ClimbRig {
     private static final float LEAN = -0.12F;
 
     private static final double ORIENT_SMOOTHING = 0.3;
-    // Looking straight along a flat rope leaves no side to hang on; below this the player hangs beneath it.
-    private static final double MIN_SIDE = 0.05;
 
     // The feet pinch the rope between their inner faces (a leg is 4 px wide, the rope about 1.5 px).
     private static final float FOOT_X = 3.2F;
@@ -187,10 +185,8 @@ final class ClimbRig {
         Vec3 ropeDir = tangent != null && tangent.lengthSqr() > 1.0e-8 ? tangent.normalize() : null;
         if (ropeDir != null) {
             upTarget = ropeDir.y < -0.05 ? ropeDir.scale(-1.0) : ropeDir;
-            double yawRad = Math.toRadians(yaw);
-            Vec3 back = new Vec3(Math.sin(yawRad), 0.0, -Math.cos(yawRad));
-            Vec3 side = perpendicular(back, upTarget);
-            if (side.lengthSqr() < MIN_SIDE * MIN_SIDE) side = perpendicular(DOWN, upTarget);
+            Vec3 side = ClimbPhysics.hangSide(yaw, upTarget);
+            if (side.lengthSqr() < 1.0e-8) side = perpendicular(DOWN, upTarget);
             frontTarget = side.normalize().scale(-1.0);
         }
         if (!oriented) {
@@ -217,8 +213,9 @@ final class ClimbRig {
         }
         if (rope != null) {
             Vec3 feet = player.position();
+            // Only the pivot's height: its forward offset turns with the body and would slide the grip along the rope.
             Vector3f pivot = pivotFromFeet(facing, player.getScale() * PX);
-            Vec3 fromRope = feet.add(pivot.x, pivot.y, pivot.z).subtract(rope);
+            Vec3 fromRope = feet.add(0.0, pivot.y, 0.0).subtract(rope);
             gripOffset = rope.add(up.scale(fromRope.dot(up))).subtract(feet);
         }
         if (gripOffsetO == null) gripOffsetO = gripOffset;
