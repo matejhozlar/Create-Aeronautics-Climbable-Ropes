@@ -81,9 +81,8 @@ public final class ClimbPhysics {
         player.fallDistance = 0.0F;
     }
 
-    // Keeps the anchor off the rope, perpendicular to it. The anchor sits above the eyes, so a rope that leans
-    // away from the player passes closer to the face than to the anchor; the offset grows to keep the rope
-    // CLIMB_SIDE_OFFSET in front of the eyes. It stays perpendicular so the closest rope point does not drift.
+    // Moves the anchor off the rope toward hangSide, perpendicular so the closest rope point does not drift. Flatter
+    // ropes keep only its sideways part; on steep ropes it grows to keep the rope CLIMB_SIDE_OFFSET from the eyes.
     public static Vec3 sideOffset(Player player, double yaw, Vec3 ropeDir) {
         Vec3 up = uphill(ropeDir);
         Vec3 side = hangSide(yaw, up);
