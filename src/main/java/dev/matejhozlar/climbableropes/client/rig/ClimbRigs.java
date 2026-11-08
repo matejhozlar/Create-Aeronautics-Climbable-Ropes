@@ -97,6 +97,10 @@ public final class ClimbRigs {
         RIGS.entrySet().removeIf(e -> e.getValue().isIdle() || mc.level.getPlayerByUUID(e.getKey()) == null);
     }
 
+    public static double gripHeight(Player player) {
+        return ClimbRig.pivotFromFeet(0.0F, player.getScale() * ClimbRig.PX).y;
+    }
+
     static ClimbRig.Pose sample(Player player, float partialTick) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) return null;
         ClimbRig rig = RIGS.get(player.getUUID());

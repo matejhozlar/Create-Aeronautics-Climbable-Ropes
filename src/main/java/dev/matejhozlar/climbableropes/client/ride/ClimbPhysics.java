@@ -2,6 +2,7 @@ package dev.matejhozlar.climbableropes.client.ride;
 
 import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.client.ClimbableRopesKeybinds;
+import dev.matejhozlar.climbableropes.client.rig.ClimbRigs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -27,6 +28,11 @@ public final class ClimbPhysics {
 
     public static Vec3 anchor(Player player) {
         return player.position().add(0.0, anchorHeight(player), 0.0);
+    }
+
+    // Along-rope distance from the anchor down to the drawn feet: the body lies along the rope below its grip.
+    static double feetBelowAnchor(Player player, double verticalComponent) {
+        return Mth.lerp(verticalComponent, ClimbRigs.gripHeight(player), anchorHeight(player));
     }
 
     static boolean forwardIsSecond(LocalPlayer player, Vec3 first, Vec3 second) {

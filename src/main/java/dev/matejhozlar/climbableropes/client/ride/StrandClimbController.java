@@ -156,7 +156,8 @@ final class StrandClimbController {
         double sTotal = totalArcLength(strand);
         double sFromIndex0 = sq.arcLengthFromStart;
         double arcRemainingForward = Math.max(0.0, forwardIsLast ? sTotal - sFromIndex0 : sFromIndex0);
-        double arcRemainingBackward = Math.max(0.0, sTotal - arcRemainingForward);
+        double feetMargin = ClimbPhysics.feetBelowAnchor(player, Math.abs(forwardAlongStrand.y));
+        double arcRemainingBackward = Math.max(0.0, sTotal - arcRemainingForward - feetMargin);
         double arcRemainingToTop = Math.max(0.0, topIsLast ? sTotal - sFromIndex0 : sFromIndex0);
 
         if (keys.jump()) {
@@ -174,7 +175,7 @@ final class StrandClimbController {
             return;
         }
 
-        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), anchor.y, bottomPoint.y)) {
+        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), player.getY(), bottomPoint.y)) {
             disembark();
             return;
         }

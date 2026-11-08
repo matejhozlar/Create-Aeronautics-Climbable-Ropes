@@ -81,14 +81,15 @@ final class PlungerClimbController {
         }
 
         Vec3 lowerEnd = back.y < fwd.y ? back : fwd;
-        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), anchor.y, lowerEnd.y)) {
+        if (DRIVE.groundedAtBottomTooLong(player.onGround(), keys.up(), player.getY(), lowerEnd.y)) {
             disembark();
             return;
         }
 
         double remainingUp = Math.max(0.0, abLen - t);
+        double remainingDown = Math.max(0.0, t - ClimbPhysics.feetBelowAnchor(player, Math.abs(dir.y)));
         ClimbDrive.Step step = DRIVE.step(keys, player.onGround(), Math.abs(dir.y),
-                new ClimbDrive.Remaining(remainingUp, t));
+                new ClimbDrive.Remaining(remainingUp, remainingDown));
 
         Vec3 ropeVel = backEnd.velocity().lerp(fwdEnd.velocity(), t / abLen);
         ClimbPhysics.applyClimbVelocity(player, anchor, ropeWorld, dir, step.speedAlong(), ropeVel);

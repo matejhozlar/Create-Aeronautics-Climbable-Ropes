@@ -34,8 +34,8 @@ final class ClimbDrive {
         slideVelocity = 0.0;
     }
 
-    boolean groundedAtBottomTooLong(boolean onGround, boolean upHeld, double anchorY, double bottomY) {
-        if (onGround && !upHeld && anchorY < bottomY + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
+    boolean groundedAtBottomTooLong(boolean onGround, boolean upHeld, double feetY, double bottomY) {
+        if (onGround && !upHeld && feetY < bottomY + ClimbableRopesConfig.BOTTOM_DISMOUNT_OFFSET.get()) {
             return ++bottomGroundedTimer > ClimbableRopesConfig.BOTTOM_GROUNDED_DISMOUNT_TICKS.get();
         }
         bottomGroundedTimer = 0;
