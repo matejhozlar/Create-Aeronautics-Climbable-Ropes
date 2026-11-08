@@ -1,4 +1,4 @@
 ## Version 2.2.1
 
 ### Changed
-- Internal improvements
+- Bump sable to 2.0.6
