@@ -155,9 +155,13 @@ final class StrandClimbController {
 
         double sTotal = totalArcLength(strand);
         double sFromIndex0 = sq.arcLengthFromStart;
-        double arcRemainingForward = Math.max(0.0, forwardIsLast ? sTotal - sFromIndex0 : sFromIndex0);
+        double arcForward = Math.max(0.0, forwardIsLast ? sTotal - sFromIndex0 : sFromIndex0);
+        Vec3 animForward = forwardIsLast ? sq.smoothTangent : sq.smoothTangent.scale(-1.0);
+        // The rig turns the body head-first toward the backward end where the strand dips forward.
+        boolean feetForward = animForward.y < -0.05;
         double feetMargin = ClimbPhysics.feetBelowAnchor(player, Math.abs(forwardAlongStrand.y));
-        double arcRemainingBackward = Math.max(0.0, sTotal - arcRemainingForward - feetMargin);
+        double arcRemainingForward = Math.max(0.0, arcForward - (feetForward ? feetMargin : 0.0));
+        double arcRemainingBackward = Math.max(0.0, sTotal - arcForward - (feetForward ? 0.0 : feetMargin));
         double arcRemainingToTop = Math.max(0.0, topIsLast ? sTotal - sFromIndex0 : sFromIndex0);
 
         if (keys.jump()) {
@@ -192,7 +196,6 @@ final class StrandClimbController {
 
         ClimbPhysics.applyClimbVelocity(player, anchor, ropeWorld, forwardAlongStrand, step.speedAlong(), sq.velocity);
 
-        Vec3 animForward = forwardIsLast ? sq.smoothTangent : sq.smoothTangent.scale(-1.0);
         ClimbAnimationController.onTick(animForward, ropeWorld, step.animState());
 
         RopeRide.keepAlive(climbingRope);
