@@ -1,6 +1,7 @@
-## Version 2.2.2
+## Version 2.2.3
+
+### Changed
+- Bumped Create Aeronautics to 1.3.3 and NeoForge to 21.1.247
 
 ### Fixed
-- Fixed climbers sliding along and flipping over flat or near-flat ropes when the camera turns
-- Fixed climbers continuing to climb down past the lower end of a rope once their feet reach it
-- Fixed the climbing grip not reaching the rope on mid-slope ropes and for scaled players
+- Fixed corpses, statues, and other copies of a player drawn by other mods mimicking that player's rope-climbing pose
