@@ -41,6 +41,16 @@ jobs:
         id: version
         run: echo "value=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
 
+      - name: Check release tag exists
+        if: ${{ inputs.publish_github_release }}
+        env:
+          TAG: v${{ steps.version.outputs.value }}
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG is not on GitHub. Push it to Gitea and wait for the mirror before publishing."
+            exit 1
+          fi
+
       - name: Extract bundled Simulated jar
         run: |
           ./gradlew extractSimulated
@@ -95,4 +105,5 @@ jobs:
           files: build/libs/!(*-@(dev|sources|javadoc)).jar
           java: 21
 
+          github-tag: v${{ steps.version.outputs.value }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
