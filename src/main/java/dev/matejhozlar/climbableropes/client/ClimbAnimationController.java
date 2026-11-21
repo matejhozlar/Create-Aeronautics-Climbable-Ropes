@@ -5,6 +5,7 @@ import dev.matejhozlar.climbableropes.ClimbableRopesConfig;
 import dev.matejhozlar.climbableropes.network.ClimbAnimUpdatePacket;
 import dev.matejhozlar.climbableropes.network.ClimbableRopesNetwork;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
@@ -105,7 +106,14 @@ public final class ClimbAnimationController {
         return currentMode != null;
     }
 
+    // Other mods draw copies of a player (corpses, statues) that carry the real player's UUID but are not in the level.
+    public static boolean isStandIn(Player player) {
+        ClientLevel level = Minecraft.getInstance().level;
+        return level == null || level.getEntity(player.getId()) != player;
+    }
+
     public static boolean isCustomPoseActive(Player player) {
+        if (isStandIn(player)) return false;
         LocalPlayer local = Minecraft.getInstance().player;
         if (local != null && player.getUUID().equals(local.getUUID())) return isCustomPoseActive();
         return RemoteClimbAnimations.isCustomPoseActive(player.getUUID());

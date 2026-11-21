@@ -103,6 +103,7 @@ public final class ClimbRigs {
 
     static ClimbRig.Pose sample(Player player, float partialTick) {
         if (!ClimbableRopesConfig.ENABLE_CLIMB_ANIMATION.get()) return null;
+        if (ClimbAnimationController.isStandIn(player)) return null;
         ClimbRig rig = RIGS.get(player.getUUID());
         if (rig == null) return null;
         ClimbRig.Pose pose = rig.sample(partialTick);
