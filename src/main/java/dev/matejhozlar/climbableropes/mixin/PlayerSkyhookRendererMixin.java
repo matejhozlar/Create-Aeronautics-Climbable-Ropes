@@ -5,6 +5,7 @@ import dev.matejhozlar.climbableropes.client.ClimbAnimationController;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -14,7 +15,7 @@ public class PlayerSkyhookRendererMixin {
 
     @Inject(method = "beforeSetupAnim", at = @At("HEAD"), cancellable = true, remap = false)
     private static void climbableRopes$cancelBefore(Player player, HumanoidModel<?> model, CallbackInfo ci) {
-        if (!ClimbAnimationController.isCustomPoseActive(player)) return;
+        if (!climbableRopes$skipsHangingPose(player)) return;
         model.head.resetPose();
         model.hat.resetPose();
         model.body.resetPose();
@@ -27,6 +28,11 @@ public class PlayerSkyhookRendererMixin {
 
     @Inject(method = "afterSetupAnim", at = @At("HEAD"), cancellable = true, remap = false)
     private static void climbableRopes$cancelAfter(Player player, HumanoidModel<?> model, CallbackInfo ci) {
-        if (ClimbAnimationController.isCustomPoseActive(player)) ci.cancel();
+        if (climbableRopes$skipsHangingPose(player)) ci.cancel();
+    }
+
+    @Unique
+    private static boolean climbableRopes$skipsHangingPose(Player player) {
+        return ClimbAnimationController.isCustomPoseActive(player) || ClimbAnimationController.isStandIn(player);
     }
 }
